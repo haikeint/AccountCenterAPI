@@ -1,0 +1,41 @@
+﻿{
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+  "iisSettings": {
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
+    "iisExpress": {
+      "applicationUrl": "http://localhost:56854",
+      "sslPort": 44343
+    }
+  },
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5016",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      //"launchBrowser": true,
+      "applicationUrl": "https://localhost:5000;http://localhost:3000",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "PRIVATE_KEY": "sUyg8bM/QQuh1OY1aOb+zt4CvBIKqDF0ZY1bgvBQ5IDO1puZaS9sdn3+UZqIYGtyoo1c0EGTjOHRMKpdYPIm+Re5hg/wga2YrK7bgxpN3pCe3OUQ+/U6Q10Ih93o7e/uijE7hRq4gD5mCrvRENt2SHF5dbuPHlgga7CNoDzDWgFOnSiXKxaDo1e8tVXapP4A",
+        "PUBLIC_KEY": "oo1c0EGTjOHRMKpdYPIm+Re5hg/wga2YrK7bgxpN3pCe3OUQ+/U6Q10Ih93o7e/uijE7hRq4gD5mCrvRENt2SHF5dbuPHlgga7CNoDzDWgFOnSiXKxaDo1e8tVXapP4A",
+        "ISSUER": "S84.VN"
+      }
+    },
+    "IIS Express": {
+      "commandName": "IISExpress",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
