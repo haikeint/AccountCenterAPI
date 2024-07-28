@@ -2,14 +2,11 @@
 using HotChocolate.Execution;
 using System.Net;
 
-namespace S84Account.GraphQL.Middleware
-{
-    public class CustomHttpResponseFormatter(HttpResponseFormatterOptions options) : DefaultHttpResponseFormatter(options)
-    {
+namespace S84Account.GraphQL.Middleware {
+    public class CustomHttpResponseFormatter(HttpResponseFormatterOptions options) : DefaultHttpResponseFormatter(options) {
         protected override HttpStatusCode OnDetermineStatusCode(
             IQueryResult result, FormatInfo format,
-            HttpStatusCode? proposedStatusCode)
-        {
+            HttpStatusCode? proposedStatusCode) {
             //if (result.Errors?.Count > 0 &&
             //    result.Errors.Any(error => error.Code == "SOME_AUTH_ISSUE"))
             //{
