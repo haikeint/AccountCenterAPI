@@ -7,7 +7,7 @@ using System.Reflection.Metadata;
 using S84Account.Config;
 using S84Account.Service;
 
-namespace S84Account.GraphQL.SchemaResolver
+namespace S84Account.GraphQL.Resolver
 {
     public class Account(IDbContextFactory<LibraryContext> contextFactory)
     {
@@ -38,32 +38,6 @@ namespace S84Account.GraphQL.SchemaResolver
             Console.WriteLine(input);
             string UserId = Util.GetContextData(resolveCTX, EnvirConst.UserId);
             return UserId;
-        }
-    }
-
-    public class AccountQuery : ObjectTypeExtension<Account>
-    {
-        protected override void Configure(IObjectTypeDescriptor<Account> descriptor)
-        {
-            descriptor.Name("Query");
-
-            descriptor.Field(q => q.GetAccount(default!, default!))
-                        .Argument("id", a => a.Type<NonNullType<IdType>>());
-            descriptor.Field(q => q.GetAccounts(default!));
-            descriptor.Field(q => q.GetTest())
-                .Use<LoggingMiddleware>();
-        }
-    }
-    public class AccountMutation : ObjectTypeExtension<Account>
-    {
-        protected override void Configure(IObjectTypeDescriptor<Account> descriptor)
-        {
-            descriptor.Name("Mutation");
-
-            descriptor.Field(m => m.AddTest(default!, default!))
-                .Argument("input", m => m.Type<NonNullType<StringType>>())
-                .Use<AuthorizedMiddleware>();
-
         }
     }
 }

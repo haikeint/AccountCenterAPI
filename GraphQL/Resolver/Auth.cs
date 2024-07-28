@@ -12,23 +12,6 @@ using System.Text;
 
 namespace S84Account.GraphQL.SchemaResolver
 {
-    public class AuthResult
-    {
-        public bool Success { get; set; }
-    }
-
-    public class AuthMutation : ObjectTypeExtension<Auth>
-    {
-        protected override void Configure(IObjectTypeDescriptor<Auth> descriptor)
-        {
-            descriptor.Name("Mutation");
-
-            descriptor.Field(q => q.Authencation(default!, default!, default!))
-                .Argument("username", a => a.Type<NonNullType<StringType>>())
-                .Argument("password", a => a.Type<NonNullType<StringType>>());
-        }
-    }
-
     public class Auth(IDbContextFactory<LibraryContext> contextFactory)
     {
         private readonly IDbContextFactory<LibraryContext> _contextFactory = contextFactory;
