@@ -1,7 +1,7 @@
-﻿using S84Account.Src.GraphQL.Middleware;
-using S84Account.Src.GraphQL.Resolver;
+﻿using S84Account.GraphQL.Middleware;
+using S84Account.GraphQL.Resolver;
 
-namespace S84Account.Src.GraphQL.MutationType
+namespace S84Account.GraphQL.MutationType
 {
     public class AccountMutation : ObjectTypeExtension<Account>
     {

@@ -2,7 +2,7 @@
 using HotChocolate.Execution;
 using System.Net;
 
-namespace S84Account.Src.GraphQL.Middleware
+namespace S84Account.GraphQL.Middleware
 {
     public class CustomHttpResponseFormatter(HttpResponseFormatterOptions options) : DefaultHttpResponseFormatter(options)
     {

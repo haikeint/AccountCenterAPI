@@ -1,10 +1,10 @@
 ﻿using HotChocolate.Resolvers;
 using System.Security.Principal;
 using System.Net;
-using S84Account.Src.Service;
-using S84Account.Src.Config;
+using S84Account.Service;
+using S84Account.Config;
 
-namespace S84Account.Src.GraphQL.Middleware
+namespace S84Account.GraphQL.Middleware
 {
     public class AuthorizedMiddleware(FieldDelegate next)
     {

@@ -2,7 +2,7 @@
 using System.Numerics;
 using System.Reflection;
 
-namespace S84Account.Src.Model
+namespace S84Account.Model
 {
     public class AccountModel
     {

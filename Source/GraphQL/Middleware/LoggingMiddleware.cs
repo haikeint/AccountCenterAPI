@@ -1,6 +1,6 @@
 ﻿using HotChocolate.Resolvers;
 
-namespace S84Account.Src.GraphQL.Middleware
+namespace S84Account.GraphQL.Middleware
 {
     public class LoggingMiddleware(FieldDelegate next)
     {

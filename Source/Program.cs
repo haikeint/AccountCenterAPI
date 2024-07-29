@@ -1,10 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using S84Account.Src.Data;
-using S84Account.Src.GraphQL.Middleware;
-using S84Account.Src.GraphQL.MutationType;
-using S84Account.Src.GraphQL.QueryType;
+using S84Account.Data;
+using S84Account.GraphQL.Middleware;
+using S84Account.GraphQL.MutationType;
+using S84Account.GraphQL.QueryType;
 
-namespace S84Account.Src
+namespace S84Account
 {
     public class Program
     {

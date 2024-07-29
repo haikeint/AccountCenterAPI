@@ -8,7 +8,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
 using System.Buffers.Text;
 
-namespace S84Account.Src.Service
+namespace S84Account.Service
 {
     public static class JWT
     {

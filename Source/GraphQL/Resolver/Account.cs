@@ -1,11 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using HotChocolate.Resolvers;
-using S84Account.Src.Service;
-using S84Account.Src.Config;
-using S84Account.Src.Data;
-using S84Account.Src.Model;
+using S84Account.Service;
+using S84Account.Config;
+using S84Account.Data;
+using S84Account.Model;
 
-namespace S84Account.Src.GraphQL.Resolver
+namespace S84Account.GraphQL.Resolver
 {
     public class Account(IDbContextFactory<LibraryContext> contextFactory)
     {

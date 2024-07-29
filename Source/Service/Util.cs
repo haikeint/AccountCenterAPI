@@ -7,7 +7,7 @@ using System.Text.Json;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace S84Account.Src.Service
+namespace S84Account.Service
 {
     public static class Util
     {

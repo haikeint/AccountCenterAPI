@@ -1,4 +1,4 @@
-﻿namespace S84Account.Src.Config
+﻿namespace S84Account.Config
 {
     public static class EnvirConst
     {
