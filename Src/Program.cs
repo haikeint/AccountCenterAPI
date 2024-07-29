@@ -1,20 +1,25 @@
-﻿namespace S84Account {
-    using Microsoft.EntityFrameworkCore;
-    using S84Account.Data;
-    using S84Account.GraphQL.Middleware;
-    using S84Account.GraphQL.MutationType;
-    using S84Account.GraphQL.QueryType;
+﻿using Microsoft.EntityFrameworkCore;
+using S84Account.Src.Data;
+using S84Account.Src.GraphQL.Middleware;
+using S84Account.Src.GraphQL.MutationType;
+using S84Account.Src.GraphQL.QueryType;
 
-    public class Program {
-        public static void Main(string[] args) {
+namespace S84Account.Src
+{
+    public class Program
+    {
+        public static void Main(string[] args)
+        {
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
             builder.Services.AddPooledDbContextFactory<LibraryContext>(options =>
                 options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection"),
                     new MySqlServerVersion(new Version(8, 0, 37))));
 
-            builder.Services.AddCors(options => {
+            builder.Services.AddCors(options =>
+            {
                 options.AddPolicy("AllowAllOrigins",
-                    policy => {
+                    policy =>
+                    {
                         policy.WithOrigins("https://localhost:3001", "https://localhost:5000")
                             .AllowAnyHeader()
                             .AllowAnyMethod()

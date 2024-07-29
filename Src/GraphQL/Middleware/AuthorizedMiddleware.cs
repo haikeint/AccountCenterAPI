@@ -1,14 +1,19 @@
 ﻿using HotChocolate.Resolvers;
-using S84Account.Service;
 using System.Security.Principal;
 using System.Net;
-using S84Account.Config;
-namespace S84Account.GraphQL.Middleware {
-    public class AuthorizedMiddleware(FieldDelegate next) {
+using S84Account.Src.Service;
+using S84Account.Src.Config;
+
+namespace S84Account.Src.GraphQL.Middleware
+{
+    public class AuthorizedMiddleware(FieldDelegate next)
+    {
         private readonly FieldDelegate _next = next;
 
-        public async Task InvokeAsync(IMiddlewareContext middlewareCTX) {
-            if (middlewareCTX.ContextData["HttpContext"] is HttpContext httpCTX) {
+        public async Task InvokeAsync(IMiddlewareContext middlewareCTX)
+        {
+            if (middlewareCTX.ContextData["HttpContext"] is HttpContext httpCTX)
+            {
                 string jwtToken = httpCTX.Request.Cookies[EnvirConst.AccessToken] ?? throw Util.Exception(HttpStatusCode.Unauthorized);
 
                 IIdentity? identity = JWT.ValidateES384(jwtToken, JWT.ISSUER, httpCTX.Request.Host.ToString());
@@ -19,7 +24,8 @@ namespace S84Account.GraphQL.Middleware {
 
                 await _next(middlewareCTX);
 
-            } else throw Util.Exception(HttpStatusCode.Unauthorized);
+            }
+            else throw Util.Exception(HttpStatusCode.Unauthorized);
         }
     }
 }

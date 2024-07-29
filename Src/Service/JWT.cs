@@ -7,7 +7,8 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
 using System.Buffers.Text;
-namespace S84Account.Service
+
+namespace S84Account.Src.Service
 {
     public static class JWT
     {
@@ -24,7 +25,7 @@ namespace S84Account.Service
         public static readonly string ISSUER = Environment.GetEnvironmentVariable("ISSUER") ?? Util.RandomString(5);
         private static readonly ECDsa _privateKey = LoadKey(Key.PRIVATE);
         private static readonly ECDsa _publicKey = LoadKey(Key.PUBLIC);
-        
+
         public static string GenerateES384(string content, string issuer, string audience, DateTime? expires = null)
         {
             JwtSecurityTokenHandler tokenHandler = new();
@@ -101,7 +102,8 @@ namespace S84Account.Service
         {
             int length = 64;
             string base64Key = Environment.GetEnvironmentVariable(keyName) ?? GenerateES384Key();
-            Key key = new() {
+            Key key = new()
+            {
                 DBase64 = Key.PRIVATE == keyName ? base64Key[0..length] : "",
                 QxBase64 = Key.PRIVATE == keyName ? base64Key[length..(length * 2)] : base64Key[0..length],
                 QyBase64 = Key.PRIVATE == keyName ? base64Key[(length * 2)..(length * 3)] : base64Key[length..(length * 2)]
@@ -111,7 +113,7 @@ namespace S84Account.Service
             byte[] qx = Convert.FromBase64String(key.QxBase64);
             byte[] qy = Convert.FromBase64String(key.QyBase64);
 
-            ECParameters ecParameters = new ()
+            ECParameters ecParameters = new()
             {
                 Curve = ECCurve.NamedCurves.nistP384,
                 Q = new ECPoint
@@ -120,7 +122,7 @@ namespace S84Account.Service
                     Y = qy
                 }
             };
-            if(Key.PRIVATE == keyName) ecParameters.D = d;
+            if (Key.PRIVATE == keyName) ecParameters.D = d;
 
             return ECDsa.Create(ecParameters);
         }
@@ -129,7 +131,7 @@ namespace S84Account.Service
         {
             string key = "";
             ECParameters privateKeyParams = privateKey.ExportParameters(false);
-            ECParameters publicKeyParams = new ()
+            ECParameters publicKeyParams = new()
             {
                 Curve = privateKeyParams.Curve,
                 Q = privateKeyParams.Q
@@ -138,7 +140,7 @@ namespace S84Account.Service
             {
                 key += Convert.ToBase64String(publicKeyParams.Q.X);
                 key += Convert.ToBase64String(publicKeyParams.Q.Y);
-            } 
+            }
             return key;
         }
 

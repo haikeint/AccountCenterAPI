@@ -1,10 +1,13 @@
 ﻿using HotChocolate.Resolvers;
 
-namespace S84Account.GraphQL.Middleware {
-    public class LoggingMiddleware(FieldDelegate next) {
+namespace S84Account.Src.GraphQL.Middleware
+{
+    public class LoggingMiddleware(FieldDelegate next)
+    {
         private readonly FieldDelegate _next = next;
 
-        public async Task InvokeAsync(IMiddlewareContext context) {
+        public async Task InvokeAsync(IMiddlewareContext context)
+        {
             // Trước khi xử lý
             Console.WriteLine("Before resolving field");
             // Gọi middleware tiếp theo trong pipeline

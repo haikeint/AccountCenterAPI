@@ -1,8 +1,11 @@
-﻿using S84Account.GraphQL.SchemaResolver;
+﻿using S84Account.Src.GraphQL.Resolver;
 
-namespace S84Account.GraphQL.MutationType {
-    public class AuthMutation : ObjectTypeExtension<Auth> {
-        protected override void Configure(IObjectTypeDescriptor<Auth> descriptor) {
+namespace S84Account.Src.GraphQL.MutationType
+{
+    public class AuthMutation : ObjectTypeExtension<Auth>
+    {
+        protected override void Configure(IObjectTypeDescriptor<Auth> descriptor)
+        {
             descriptor.Name("Mutation");
 
             descriptor.Field(q => q.Authencation(default!, default!, default!))

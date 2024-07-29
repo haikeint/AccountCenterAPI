@@ -1,22 +1,26 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using S84Account.Data;
-using S84Account.Model;
 using System.Net;
-using S84Account.Service;
-using S84Account.Config;
 using System.Security.Cryptography;
+using S84Account.Src.Service;
+using S84Account.Src.Config;
+using S84Account.Src.Data;
+using S84Account.Src.Model;
 
-namespace S84Account.GraphQL.SchemaResolver {
-    public class Auth(IDbContextFactory<LibraryContext> contextFactory) {
+namespace S84Account.Src.GraphQL.Resolver
+{
+    public class Auth(IDbContextFactory<LibraryContext> contextFactory)
+    {
         private readonly IDbContextFactory<LibraryContext> _contextFactory = contextFactory;
         private static readonly int _iterations = 500000;
 
-        public async Task<bool> Authencation(string username, string password, [Service] IHttpContextAccessor httpContextAccessor) {
+        public async Task<bool> Authencation(string username, string password, [Service] IHttpContextAccessor httpContextAccessor)
+        {
             LibraryContext context = _contextFactory.CreateDbContext();
 
             AccountModel accountModel = await context.Account
                 .Where(account => account.Username == username)
-                .Select(account => new AccountModel {
+                .Select(account => new AccountModel
+                {
                     Id = account.Id,
                     Password = account.Password,
                 })
@@ -31,7 +35,8 @@ namespace S84Account.GraphQL.SchemaResolver {
             return true;
         }
 
-        private static string HashPassword(string password) {
+        private static string HashPassword(string password)
+        {
             byte[] salt = new byte[16];
             RandomNumberGenerator.Fill(salt);
 
@@ -43,7 +48,8 @@ namespace S84Account.GraphQL.SchemaResolver {
             return Convert.ToBase64String(hashBytes);
         }
 
-        private static bool VerifyPassword(string password, string storedHash) {
+        private static bool VerifyPassword(string password, string storedHash)
+        {
             if (!Util.IsBase64String(storedHash)) return false;
             byte[] hashBytes = Convert.FromBase64String(storedHash);
             byte[] salt = new byte[16];

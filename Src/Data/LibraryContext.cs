@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using S84Account.Model;
 using Microsoft.Extensions.Options;
+using S84Account.Src.Model;
 
-namespace S84Account.Data
+namespace S84Account.Src.Data
 {
     public class LibraryContext(DbContextOptions<LibraryContext> options) : DbContext(options)
     {
