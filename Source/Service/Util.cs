@@ -11,6 +11,10 @@ namespace S84Account.Service
 {
     public static class Util
     {
+        public static string GetEnv(string name, string defaultValue = "") {
+            return Environment.GetEnvironmentVariable(name) ?? defaultValue;
+        }
+
         public static bool IsBase64String(string base64)
         {
             Span<byte> buffer = new(new byte[base64.Length]);

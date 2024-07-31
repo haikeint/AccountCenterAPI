@@ -36,8 +36,8 @@ namespace S84Account
                 .AddMutationType(d => d.Name("Mutation"))
                 .AddTypeExtension<AccountQuery>()
                 .AddTypeExtension<AccountMutation>()
+                .AddTypeExtension<AuthQuery>()
                 .AddTypeExtension<AuthMutation>();
-
 
             WebApplication app = builder.Build();
             app.UseCors("AllowAllOrigins");

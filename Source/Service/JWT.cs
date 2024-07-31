@@ -22,7 +22,7 @@ namespace S84Account.Service
             public string? QyBase64 { get; set; }
         }
 
-        public static readonly string ISSUER = Environment.GetEnvironmentVariable("ISSUER") ?? Util.RandomString(5);
+        public static readonly string ISSUER = Util.GetEnv("ISSUER", Util.RandomString(5));
         private static readonly ECDsa _privateKey = LoadKey(Key.PRIVATE);
         private static readonly ECDsa _publicKey = LoadKey(Key.PUBLIC);
 
@@ -101,7 +101,7 @@ namespace S84Account.Service
         private static ECDsa LoadKey(string keyName)
         {
             int length = 64;
-            string base64Key = Environment.GetEnvironmentVariable(keyName) ?? GenerateES384Key();
+            string base64Key = Util.GetEnv(keyName, GenerateES384Key());
             Key key = new()
             {
                 DBase64 = Key.PRIVATE == keyName ? base64Key[0..length] : "",
