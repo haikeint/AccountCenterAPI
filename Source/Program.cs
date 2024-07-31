@@ -3,6 +3,7 @@ using S84Account.Data;
 using S84Account.GraphQL.Middleware;
 using S84Account.GraphQL.MutationType;
 using S84Account.GraphQL.QueryType;
+using S84Account.Service;
 
 namespace S84Account
 {
@@ -20,7 +21,7 @@ namespace S84Account
                 options.AddPolicy("AllowAllOrigins",
                     policy =>
                     {
-                        policy.WithOrigins("https://localhost:3001", "https://localhost:5000")
+                        policy.WithOrigins(Util.GetEnv("ORIGINS").Split(','))
                             .AllowAnyHeader()
                             .AllowAnyMethod()
                             .AllowCredentials();
