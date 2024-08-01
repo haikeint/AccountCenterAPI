@@ -1,9 +1,8 @@
-﻿using System.Linq.Expressions;
-using System.Numerics;
-using System.Reflection;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 
 namespace S84Account.Model
 {
+    [Table("account")]
     public class AccountModel
     {
         public int Id { get; set; }

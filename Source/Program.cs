@@ -1,9 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using HotChocolate.AspNetCore;
 using S84Account.Data;
 using S84Account.GraphQL.Middleware;
 using S84Account.GraphQL.MutationType;
 using S84Account.GraphQL.QueryType;
 using S84Account.Service;
+using DotNetEnv;
 
 namespace S84Account
 {
@@ -11,9 +13,10 @@ namespace S84Account
     {
         public static void Main(string[] args)
         {
+            Env.Load();
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
             builder.Services.AddPooledDbContextFactory<LibraryContext>(options =>
-                options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection"),
+                options.UseMySql(Util.GetEnv("MYSQL"),
                     new MySqlServerVersion(new Version(8, 0, 37))));
 
             builder.Services.AddCors(options =>
@@ -21,7 +24,7 @@ namespace S84Account
                 options.AddPolicy("AllowAllOrigins",
                     policy =>
                     {
-                        policy.WithOrigins(Util.GetEnv("ORIGINS").Split(','))
+                        policy.WithOrigins(Util.GetEnv("ORIGINS").Split(';'))
                             .AllowAnyHeader()
                             .AllowAnyMethod()
                             .AllowCredentials();
@@ -33,15 +36,24 @@ namespace S84Account
             builder.Services.AddHttpContextAccessor();
             builder.Services
                 .AddGraphQLServer()
+                .AllowIntrospection(false)
                 .AddQueryType(d => d.Name("Query"))
                 .AddMutationType(d => d.Name("Mutation"))
                 .AddTypeExtension<AccountQuery>()
                 .AddTypeExtension<AccountMutation>()
                 .AddTypeExtension<AuthQuery>()
                 .AddTypeExtension<AuthMutation>();
+         
 
             WebApplication app = builder.Build();
             app.UseCors("AllowAllOrigins");
+            app.MapGraphQL("/gql")
+                .WithOptions(new GraphQLServerOptions {
+                    EnableSchemaRequests = false,
+                    Tool = {
+                        Enable = false,
+                    }
+                });
             app.UseRouting();
             //app.Use(async (context, next) =>
             //{
@@ -56,7 +68,7 @@ namespace S84Account
             //    // Custom logic after GraphQL processing
             //    Console.WriteLine("After GraphQL");
             //});
-            app.MapGraphQL("/gql");
+            
             app.Run();
         }
     }

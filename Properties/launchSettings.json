@@ -24,13 +24,7 @@
       //"launchBrowser": true,
       "applicationUrl": "https://localhost:5000;http://localhost:3000",
       "environmentVariables": {
-        "ORIGINS": "https://localhost,https://localhost:3001,https://localhost:5000",
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "PRIVATE_KEY": "sUyg8bM/QQuh1OY1aOb+zt4CvBIKqDF0ZY1bgvBQ5IDO1puZaS9sdn3+UZqIYGtyoo1c0EGTjOHRMKpdYPIm+Re5hg/wga2YrK7bgxpN3pCe3OUQ+/U6Q10Ih93o7e/uijE7hRq4gD5mCrvRENt2SHF5dbuPHlgga7CNoDzDWgFOnSiXKxaDo1e8tVXapP4A",
-        "PUBLIC_KEY": "oo1c0EGTjOHRMKpdYPIm+Re5hg/wga2YrK7bgxpN3pCe3OUQ+/U6Q10Ih93o7e/uijE7hRq4gD5mCrvRENt2SHF5dbuPHlgga7CNoDzDWgFOnSiXKxaDo1e8tVXapP4A",
-        "ISSUER": "S84.VN",
-        "RECATPCHA_V2_SECRET_KEY": "6Lct5BoqAAAAAIlS1pLrWPhWaNoanklCk-akfrW1",
-        "RECATPCHA_V3_SECRET_KEY": "6LdTyxsqAAAAABDb3Ad6fX3mqPKNHpTPbpYZyUBE"
+
       }
     },
     "IIS Express": {
