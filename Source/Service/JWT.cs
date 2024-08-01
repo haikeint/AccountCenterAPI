@@ -4,7 +4,6 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
 using System.Buffers.Text;
 
@@ -14,15 +13,15 @@ namespace S84Account.Service
     {
         private class Key
         {
-            public static readonly string PRIVATE = "PRIVATE_KEY";
-            public static readonly string PUBLIC = "PUBLIC_KEY";
+            public static readonly string PRIVATE = "JWT_PRIVATE_KEY";
+            public static readonly string PUBLIC = "JWT_PUBLIC_KEY";
             public static readonly string Header = "eyJhbGciOiJFUzM4NCIsInR5cCI6IkpXVCJ9.";
             public string? DBase64 { get; set; }
             public string? QxBase64 { get; set; }
             public string? QyBase64 { get; set; }
         }
 
-        public static readonly string ISSUER = Util.GetEnv("ISSUER", Util.RandomString(5));
+        public static readonly string ISSUER = Util.GetEnv("JWT_ISSUER", Util.RandomString(5));
         private static readonly ECDsa _privateKey = LoadKey(Key.PRIVATE);
         private static readonly ECDsa _publicKey = LoadKey(Key.PUBLIC);
 

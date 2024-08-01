@@ -6,11 +6,24 @@ using System.Reflection;
 using System.Text.Json;
 using System.Security.Cryptography;
 using System.Text;
-
+using S84Account.Config;
 namespace S84Account.Service
 {
     public static class Util
     {
+        public static string GetConnectionString(string serverName) {
+            string Server = GetEnv($"{serverName}_HOST");
+            string Port = GetEnv($"{serverName}_PORT");
+            string Database = GetEnv($"{serverName}_DATABASE");
+            string User = GetEnv($"{serverName}_USERNAME");
+            string Password = GetEnv($"{serverName}_PASSWORD");
+
+            return $"Server={Server};Port={Port};Database={Database};User={User};password={Password};";
+        }
+
+        public static bool IsDevelopment() {
+            return Environment.GetEnvironmentVariable("APP_ENVIRONMENT") == EnvirConst.DEVELOPMENT;
+        }
         public static string GetEnv(string name, string defaultValue = "") {
             return Environment.GetEnvironmentVariable(name) ?? defaultValue;
         }

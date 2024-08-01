@@ -15,8 +15,14 @@ namespace S84Account
         {
             Env.Load();
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+            builder.WebHost.ConfigureKestrel(serverOptions => {
+                serverOptions.ListenLocalhost(int.Parse(Util.GetEnv("APP_PORT")), (listenOptions) => {
+                    if(Util.IsDevelopment()) listenOptions.UseHttps();
+                });
+            });
+
             builder.Services.AddPooledDbContextFactory<LibraryContext>(options =>
-                options.UseMySql(Util.GetEnv("MYSQL"),
+                options.UseMySql(Util.GetConnectionString("MYSQL"),
                     new MySqlServerVersion(new Version(8, 0, 37))));
 
             builder.Services.AddCors(options =>
@@ -24,12 +30,11 @@ namespace S84Account
                 options.AddPolicy("AllowAllOrigins",
                     policy =>
                     {
-                        policy.WithOrigins(Util.GetEnv("ORIGINS").Split(';'))
+                        policy.WithOrigins(Util.GetEnv("APP_ORIGINS").Split(';'))
                             .AllowAnyHeader()
                             .AllowAnyMethod()
                             .AllowCredentials();
                     });
-
             });
 
             builder.Services.AddHttpResponseFormatter(_ => CustomHttpResponseFormatter.Instance);
@@ -55,6 +60,7 @@ namespace S84Account
                     }
                 });
             app.UseRouting();
+            app.MapGet("/api", () => "Welcome s84.vn");
             //app.Use(async (context, next) =>
             //{
             //    // Custom logic before GraphQL processing
