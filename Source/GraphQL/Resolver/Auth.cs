@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System.Net;
 using System.Security.Cryptography;
 using S84Account.Service;
@@ -8,6 +8,8 @@ using S84Account.Model;
 using System.Text.Json.Serialization;
 using MySqlConnector;
 using static System.Net.WebRequestMethods;
+using StackExchange.Redis;
+using DotNetEnv;
 
 namespace S84Account.GraphQL.Resolver
 {
@@ -32,9 +34,10 @@ namespace S84Account.GraphQL.Resolver
         public float? Score { get; set; }
     }
 
-    public class Auth(IDbContextFactory<LibraryContext> contextFactory)
+    public class Auth(IDbContextFactory<MysqlContext> contextFactory, RedisConnectionPool redisConnectionPool)
     {
-        private readonly IDbContextFactory<LibraryContext> _contextFactory = contextFactory;
+        private readonly IDbContextFactory<MysqlContext> _contextFactory = contextFactory;
+        private readonly RedisConnectionPool _redisPool = redisConnectionPool;
 
         private static readonly int ITERATIONS = 500000;
         private static readonly float ACCEPT_SCORE = 0.5f;
@@ -44,26 +47,50 @@ namespace S84Account.GraphQL.Resolver
 
         public async Task<bool> Login(string username, string password, string rectoken, int recver, [Service] IHttpContextAccessor httpContextAccessor)
         {
+            AccountModel? accountModel = null;
             if (!(await VerifyRecaptcha(rectoken, recver))) throw Util.Exception(HttpStatusCode.Forbidden);
             try {
-                LibraryContext ctxDB = _contextFactory.CreateDbContext();
-                AccountModel? accountModel = await ctxDB.Account
+                RedisValue[] accountRedis = Redis.HashGet(_redisPool, redisCTX => {
+                    return redisCTX.HashGet(username, ["Id", "Password"]);
+                });
+
+                if(accountRedis[0].HasValue && accountRedis[1].HasValue) {
+                    Console.WriteLine("__Redis");
+                    accountModel = new AccountModel {
+                        Id = (long)accountRedis[0],
+                        Password = accountRedis[1].ToString()
+                    };
+                } else {
+                    Console.WriteLine("__Mysql");
+                    MysqlContext ctxDB = _contextFactory.CreateDbContext();
+                    accountModel = await ctxDB.Account
                     .Where(account => account.Username == username)
-                    .Select(account => new AccountModel
-                    {
+                        .Select(account => new AccountModel {
                         Id = account.Id,
+                            Username = account.Username,
                         Password = account.Password,
                     })
                     .FirstOrDefaultAsync();
+                }
 
-                if(accountModel != null && VerifyPassword(password, accountModel.Password)) {
+                if(accountModel != null) {
+                    Redis.Handle(_redisPool, redisCTX => {
+                        redisCTX.HashSet(accountModel.Username, [
+                            new HashEntry("Id", accountModel.Id),
+                            new HashEntry("Password", accountModel.Password)
+                            ]);
+                        redisCTX.KeyExpire(accountModel.Username, TimeSpan.FromDays(1));
+                    });
+                    if(VerifyPassword(password, accountModel.Password)) {
                     HttpContext? httpCTX = httpContextAccessor.HttpContext;
                     string host = httpCTX?.Request.Host.ToString() ?? string.Empty;
                     string jwtToken = JWT.GenerateES384(accountModel.Id.ToString(), JWT.ISSUER, host);
                     httpCTX?.Response.Cookies.Append(EnvirConst.AccessToken, jwtToken, Util.CookieOptions());
                     return true;
                 }
-            } catch (Exception _) { 
+
+                }
+            } catch (Exception) { 
                 throw Util.Exception(HttpStatusCode.InternalServerError);
             }
             throw Util.Exception(HttpStatusCode.Unauthorized);
@@ -83,16 +110,17 @@ namespace S84Account.GraphQL.Resolver
             if(! (await VerifyRecaptcha(recaptcha))) throw Util.Exception(HttpStatusCode.Forbidden);
             try {
                 AccountModel accountModel = new() {
+                    Id = AccountModel.CreateId(),
                     Username = username,
                     Password = HashPassword(password),
                     Email = email,
                 };
-                LibraryContext dbCTX = _contextFactory.CreateDbContext();
+                MysqlContext dbCTX = _contextFactory.CreateDbContext();
                 dbCTX.Account.Add(accountModel);
                 if(await dbCTX.SaveChangesAsync() > 0) return true;
             } catch (DbUpdateException dbEx) when (IsUniqueConstraintViolation(dbEx)) {
                 throw Util.Exception(HttpStatusCode.Conflict);
-            } catch (Exception _) {
+            } catch (Exception) {
                 throw Util.Exception(HttpStatusCode.InternalServerError);
             }
             throw Util.Exception(HttpStatusCode.BadRequest);
@@ -102,7 +130,7 @@ namespace S84Account.GraphQL.Resolver
             AccountModel? accountModel = null;
 
             try {
-                LibraryContext ctxDB = _contextFactory.CreateDbContext();
+                MysqlContext ctxDB = _contextFactory.CreateDbContext();
                 accountModel = await ctxDB.Account
                     .Where(account => account.Username == username)
                     .Select(account => new AccountModel
@@ -110,7 +138,7 @@ namespace S84Account.GraphQL.Resolver
                         Id = account.Id,
                     })
                     .FirstOrDefaultAsync();
-            } catch(Exception _) {
+            } catch(Exception) {
 
             }
             return accountModel != null;
@@ -164,7 +192,7 @@ namespace S84Account.GraphQL.Resolver
                 ReCaptchaResponse? responseBody = await response.Content.ReadFromJsonAsync<ReCaptchaResponse>();
                 return version == 2 ? responseBody?.Success ?? false : (responseBody?.Score ?? 0.0) >= ACCEPT_SCORE;
             }
-            catch (HttpRequestException _)
+            catch (HttpRequestException)
             {
                 //Console.WriteLine($"Request error: {_.Message}");
             }

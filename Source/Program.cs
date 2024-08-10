@@ -21,7 +21,7 @@ namespace S84Account
                 });
             });
 
-            builder.Services.AddPooledDbContextFactory<LibraryContext>(options =>
+            builder.Services.AddPooledDbContextFactory<MysqlContext>(options =>
                 options.UseMySql(Util.GetConnectionString("MYSQL"),
                     new MySqlServerVersion(new Version(8, 0, 37))));
 

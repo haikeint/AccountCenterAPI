@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿using IdGen;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace S84Account.Model
 {

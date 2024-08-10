@@ -7,9 +7,9 @@ using S84Account.Model;
 
 namespace S84Account.GraphQL.Resolver
 {
-    public class Account(IDbContextFactory<LibraryContext> contextFactory)
+    public class Account(IDbContextFactory<MysqlContext> contextFactory)
     {
-        private readonly IDbContextFactory<LibraryContext> _contextFactory = contextFactory;
+        private readonly IDbContextFactory<MysqlContext> _contextFactory = contextFactory;
 
         public IQueryable<AccountModel> GetAccount(int id, IResolverContext resctx)
         {
@@ -27,7 +27,7 @@ namespace S84Account.GraphQL.Resolver
 
         public Task<List<AccountModel>> GetTest()
         {
-            LibraryContext context = _contextFactory.CreateDbContext();
+            MysqlContext context = _contextFactory.CreateDbContext();
             return context.Account.ToListAsync();
         }
 
