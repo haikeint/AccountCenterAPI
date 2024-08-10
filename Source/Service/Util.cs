@@ -8,10 +8,23 @@ using System.Security.Cryptography;
 using System.Text;
 using S84Account.Config;
 using DotNetEnv;
+using System.Data.HashFunction.xxHash;
 namespace S84Account.Service
 {
     public static class Util
     {
+        public static int GetHashIndex(string input, int numberOfDatabases) {
+            uint hash = ComputeXxHash32(input);
+            return (int)(hash % (uint)numberOfDatabases);
+        }
+
+        public static uint ComputeXxHash32(string input) {
+            IxxHash xxHash = xxHashFactory.Instance.Create(new xxHashConfig() { HashSizeInBits = 32 });
+            byte[] bytes = Encoding.UTF8.GetBytes(input);
+            byte[] hashBytes = xxHash.ComputeHash(bytes).Hash;
+            return BitConverter.ToUInt32(hashBytes, 0);
+        }
+
         public static string GetConnectionString(string serverName) {
             string Server = Env.GetString($"{serverName}_HOST");
             string Port = Env.GetString($"{serverName}_PORT");

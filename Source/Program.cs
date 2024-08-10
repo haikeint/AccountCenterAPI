@@ -7,12 +7,10 @@ using S84Account.GraphQL.QueryType;
 using S84Account.Service;
 using DotNetEnv;
 
-namespace S84Account
-{
-    public class Program
-    {
-        public static void Main(string[] args)
-        {
+namespace S84Account {
+    public class Program {
+
+        public static void Main(string[] args) {
             Env.Load();
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
             builder.WebHost.ConfigureKestrel(serverOptions => {
@@ -45,26 +43,27 @@ namespace S84Account
             builder.Services.AddHttpContextAccessor();
             builder.Services
                 .AddGraphQLServer()
-                .AllowIntrospection(false)
+                //.AllowIntrospection(false)
                 .AddQueryType(d => d.Name("Query"))
                 .AddMutationType(d => d.Name("Mutation"))
                 .AddTypeExtension<AccountQuery>()
                 .AddTypeExtension<AccountMutation>()
                 .AddTypeExtension<AuthQuery>()
                 .AddTypeExtension<AuthMutation>();
-         
 
             WebApplication app = builder.Build();
             app.UseCors("AllowAllOrigins");
             app.MapGraphQL("/gql")
                 .WithOptions(new GraphQLServerOptions {
-                    EnableSchemaRequests = false,
+                    EnableSchemaRequests = Util.IsDevelopment(),
                     Tool = {
-                        Enable = false,
+                        Enable = Util.IsDevelopment(),
                     }
                 });
             app.UseRouting();
-            app.MapGet("/api", () => "Welcome s84.vn");
+            app.MapGet("/api/{username}", (string username) => {
+
+            });
             //app.Use(async (context, next) =>
             //{
             //    // Custom logic before GraphQL processing
@@ -78,7 +77,7 @@ namespace S84Account
             //    // Custom logic after GraphQL processing
             //    Console.WriteLine("After GraphQL");
             //});
-            
+
             app.Run();
         }
     }
