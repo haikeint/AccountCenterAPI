@@ -39,8 +39,8 @@ namespace S84Account.GraphQL.Resolver
         private static readonly int ITERATIONS = 500000;
         private static readonly float ACCEPT_SCORE = 0.5f;
 
-        private static readonly string RECATPCHA_V2_SECRET_KEY = Util.GetEnv("RECATPCHA_V2_SECRET_KEY");
-        private static readonly string RECATPCHA_V3_SECRET_KEY = Util.GetEnv("RECATPCHA_V3_SECRET_KEY");
+        private static readonly string RECATPCHA_V2_SECRET_KEY = Env.GetString("RECATPCHA_V2_SECRET_KEY");
+        private static readonly string RECATPCHA_V3_SECRET_KEY = Env.GetString("RECATPCHA_V3_SECRET_KEY");
 
         public async Task<bool> Login(string username, string password, string rectoken, int recver, [Service] IHttpContextAccessor httpContextAccessor)
         {

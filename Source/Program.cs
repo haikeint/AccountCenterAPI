@@ -16,8 +16,8 @@ namespace S84Account
             Env.Load();
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
             builder.WebHost.ConfigureKestrel(serverOptions => {
-                serverOptions.ListenLocalhost(int.Parse(Util.GetEnv("APP_PORT")), (listenOptions) => {
-                    if(Util.IsDevelopment()) listenOptions.UseHttps();
+                serverOptions.ListenLocalhost(Env.GetInt("APP_PORT"), (listenOptions) => {
+                    if (Util.IsDevelopment()) listenOptions.UseHttps();
                 });
             });
 
@@ -25,12 +25,16 @@ namespace S84Account
                 options.UseMySql(Util.GetConnectionString("MYSQL"),
                     new MySqlServerVersion(new Version(8, 0, 37))));
 
-            builder.Services.AddCors(options =>
-            {
+            builder.Services.AddSingleton(option => {
+                return RedisConnectionPoolManager.GetInstance(
+                    Env.GetString("REDIS_HOST"),
+                    Env.GetInt("REDIS_POLLSIZE"));
+            });
+
+            builder.Services.AddCors(options => {
                 options.AddPolicy("AllowAllOrigins",
-                    policy =>
-                    {
-                        policy.WithOrigins(Util.GetEnv("APP_ORIGINS").Split(';'))
+                    policy => {
+                        policy.WithOrigins(Env.GetString("APP_ORIGINS").Split(';'))
                             .AllowAnyHeader()
                             .AllowAnyMethod()
                             .AllowCredentials();

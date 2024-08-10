@@ -12,20 +12,17 @@ namespace S84Account.Service
     public static class Util
     {
         public static string GetConnectionString(string serverName) {
-            string Server = GetEnv($"{serverName}_HOST");
-            string Port = GetEnv($"{serverName}_PORT");
-            string Database = GetEnv($"{serverName}_DATABASE");
-            string User = GetEnv($"{serverName}_USERNAME");
-            string Password = GetEnv($"{serverName}_PASSWORD");
+            string Server = Env.GetString($"{serverName}_HOST");
+            string Port = Env.GetString($"{serverName}_PORT");
+            string Database = Env.GetString($"{serverName}_DATABASE");
+            string User = Env.GetString($"{serverName}_USERNAME");
+            string Password = Env.GetString($"{serverName}_PASSWORD");
 
-            return $"Server={Server};Port={Port};Database={Database};User={User};password={Password};";
+            return $"Server={Server};Port={Port};Database={Database};User={User};Password={Password};";
         }
 
         public static bool IsDevelopment() {
-            return Environment.GetEnvironmentVariable("APP_ENVIRONMENT") == EnvirConst.DEVELOPMENT;
-        }
-        public static string GetEnv(string name, string defaultValue = "") {
-            return Environment.GetEnvironmentVariable(name) ?? defaultValue;
+            return Env.GetString("APP_ENVIRONMENT") == EnvirConst.DEVELOPMENT;
         }
 
         public static bool IsBase64String(string base64)
