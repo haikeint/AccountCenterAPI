@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using System.Net;
 using System.Security.Cryptography;
 using S84Account.Service;
@@ -7,7 +7,6 @@ using S84Account.Data;
 using S84Account.Model;
 using System.Text.Json.Serialization;
 using MySqlConnector;
-using static System.Net.WebRequestMethods;
 using StackExchange.Redis;
 using DotNetEnv;
 
@@ -39,8 +38,8 @@ namespace S84Account.GraphQL.Resolver
         private readonly IDbContextFactory<MysqlContext> _contextFactory = contextFactory;
         private readonly RedisConnectionPool _redisPool = redisConnectionPool;
 
-        private static readonly int ITERATIONS = 500000;
-        private static readonly float ACCEPT_SCORE = 0.5f;
+        private static readonly int ITERATIONS = Env.GetInt("PBKDF2_ITERATIONS");
+        private static readonly float ACCEPT_SCORE = float.Parse(Env.GetString("RECATPCHA_V3_ACCEPT_SCORE"));
 
         private static readonly string RECATPCHA_V2_SECRET_KEY = Env.GetString("RECATPCHA_V2_SECRET_KEY");
         private static readonly string RECATPCHA_V3_SECRET_KEY = Env.GetString("RECATPCHA_V3_SECRET_KEY");
@@ -64,13 +63,13 @@ namespace S84Account.GraphQL.Resolver
                     Console.WriteLine("__Mysql");
                     MysqlContext ctxDB = _contextFactory.CreateDbContext();
                     accountModel = await ctxDB.Account
-                    .Where(account => account.Username == username)
+                        .Where(account => account.Username == username)
                         .Select(account => new AccountModel {
-                        Id = account.Id,
+                            Id = account.Id,
                             Username = account.Username,
-                        Password = account.Password,
-                    })
-                    .FirstOrDefaultAsync();
+                            Password = account.Password,
+                        })
+                        .FirstOrDefaultAsync();
                 }
 
                 if(accountModel != null) {
@@ -82,12 +81,12 @@ namespace S84Account.GraphQL.Resolver
                         redisCTX.KeyExpire(accountModel.Username, TimeSpan.FromDays(1));
                     });
                     if(VerifyPassword(password, accountModel.Password)) {
-                    HttpContext? httpCTX = httpContextAccessor.HttpContext;
-                    string host = httpCTX?.Request.Host.ToString() ?? string.Empty;
-                    string jwtToken = JWT.GenerateES384(accountModel.Id.ToString(), JWT.ISSUER, host);
-                    httpCTX?.Response.Cookies.Append(EnvirConst.AccessToken, jwtToken, Util.CookieOptions());
-                    return true;
-                }
+                        HttpContext? httpCTX = httpContextAccessor.HttpContext;
+                        string host = httpCTX?.Request.Host.ToString() ?? string.Empty;
+                        string jwtToken = JWT.GenerateES384(accountModel.Id.ToString(), JWT.ISSUER, host);
+                        httpCTX?.Response.Cookies.Append(EnvirConst.AccessToken, jwtToken, Util.CookieOptions());
+                        return true;
+                    }
 
                 }
             } catch (Exception) { 
@@ -100,7 +99,7 @@ namespace S84Account.GraphQL.Resolver
             try {
                 HttpContext? httpCTX = httpContextAccessor.HttpContext;
                 httpCTX?.Response.Cookies.Delete(EnvirConst.AccessToken);
-            } catch(Exception _) {
+            } catch (Exception) {
                 throw Util.Exception(HttpStatusCode.InternalServerError);
             }
             return true;

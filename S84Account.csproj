@@ -10,6 +10,7 @@
     <PackageReference Include="DotNetEnv" Version="3.1.0" />
     <PackageReference Include="HotChocolate.AspNetCore" Version="13.9.7" />
     <PackageReference Include="HotChocolate.Data.EntityFramework" Version="13.9.7" />
+    <PackageReference Include="IdGen" Version="3.0.7" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.7" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.7">
       <PrivateAssets>all</PrivateAssets>
@@ -17,6 +18,8 @@
     </PackageReference>
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.0.0" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
+    <PackageReference Include="StackExchange.Redis" Version="2.8.0" />
+    <PackageReference Include="System.Data.HashFunction.xxHash" Version="2.0.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.0" />
   </ItemGroup>
 
