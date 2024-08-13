@@ -180,7 +180,7 @@ namespace S84Account.GraphQL.Resolver {
 
                 if (response.EnsureSuccessStatusCode().StatusCode != HttpStatusCode.OK) return false;
                 ReCaptchaResponse? responseBody = await response.Content.ReadFromJsonAsync<ReCaptchaResponse>();
-                return version == 2 ? responseBody?.Success ?? false : (responseBody?.Score ?? 0.0)*10 >= ACCEPT_SCORE *10;
+                return version == 2 ? responseBody?.Success ?? false : (responseBody?.Score ?? 0.0)*100 >= ACCEPT_SCORE *100;
             } catch (HttpRequestException) {
                 //Console.WriteLine($"Request error: {_.Message}");
             }
