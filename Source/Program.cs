@@ -13,11 +13,12 @@ namespace S84Account {
         public static void Main(string[] args) {
             Env.Load();
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
-            builder.WebHost.ConfigureKestrel(serverOptions => {
-                serverOptions.ListenLocalhost(Env.GetInt("APP_PORT"), (listenOptions) => {
-                    if (Util.IsDevelopment()) listenOptions.UseHttps();
-                });
-            });
+
+            //builder.WebHost.ConfigureKestrel(serverOptions => {
+            //    serverOptions.ListenLocalhost(Env.GetInt("APP_PORT"), (listenOptions) => {
+            //        if (Util.IsDevelopment()) listenOptions.UseHttps();
+            //    });
+            //});
 
             builder.Services.AddPooledDbContextFactory<MysqlContext>(options =>
                 options.UseMySql(Util.GetConnectionString("MYSQL"),
