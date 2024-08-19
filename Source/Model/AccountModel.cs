@@ -1,6 +1,6 @@
 ﻿using IdGen;
 using System.ComponentModel.DataAnnotations.Schema;
-
+using DotNetEnv;
 namespace S84Account.Model
 {
     [Table("account")]
@@ -21,21 +21,23 @@ namespace S84Account.Model
         public string Address { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string Idcode { get; set; } = string.Empty;
-        public static long CreateId(int nodeId = 0) {
-            if(!(nodeId != 0)) nodeId = AccountID.NodeId;
-            return long.Parse(nodeId.ToString() + AccountID.CreateId());
-        }
+        public static long CreateId() => AccountID.CreateId();
 
         private static class AccountID {
-            public static int NodeId = 1000;
             private static readonly IdGenerator _generator = CreateGenerator();
             private static IdGenerator CreateGenerator() {
                 DateTime epoch = new (2024, 8, 2, 0, 0, 0, DateTimeKind.Utc);
-                IdStructure idStructure = new (44, 0, 19);
+
+                IdStructure idStructure = new (42, 5, 16);
+                //2^42 chia 31 557 600 000(1 năm) ~~ 139 năm
+                //2^5 = 32 nodeId
+                //2^16 = 65536 id mỗi 1ms
+
                 IdGeneratorOptions generatorOptions = new (idStructure, new DefaultTimeSource(epoch));
-                return new (0, generatorOptions);
+
+                return new (Env.GetInt("NODEID"), generatorOptions);
             }
-            public static string CreateId() => _generator.CreateId().ToString();
+            public static long CreateId() => _generator.CreateId();
         }
     }
 }
