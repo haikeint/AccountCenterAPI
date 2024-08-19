@@ -21,5 +21,4 @@
             return _instance;
         }
     }
-
 }

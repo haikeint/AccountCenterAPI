@@ -9,7 +9,6 @@ using DotNetEnv;
 
 namespace S84Account {
     public class Program {
-
         public static void Main(string[] args) {
             Env.Load();
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);

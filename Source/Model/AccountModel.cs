@@ -6,10 +6,17 @@ namespace S84Account.Model
     [Table("account")]
     public class AccountModel
     {
+        private enum Genders {
+            Male = 1,
+            Female = 2,
+            Other = 0
+        }
+
         public long Id { get; set; }
         public string Username { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
+        public int Gender { get; set; } = (int)Genders.Other;
         public int Phone { get; set; }
         public string Address { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
