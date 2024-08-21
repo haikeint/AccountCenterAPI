@@ -15,25 +15,35 @@ namespace S84Account.GraphQL.Mutation
 {
     public class AuthMutation : ObjectTypeExtension
     {
+        private class Agrs {
+            public static readonly string USERNAME = "username";
+            public static readonly string PASSWORD = "password";
+            public static readonly string RECTOKEN = "rectoken";
+            public static readonly string RECVER = "recver";
+            public static readonly string EMAIL = "email";
+            public static readonly string RECAPTCHA = "recaptcha";
+            //public static readonly string ____ = "____";
+            //public static readonly string ____ = "____";
+        }
         protected override void Configure(IObjectTypeDescriptor descriptor)
         {
             descriptor.Name("Mutation");
 
             descriptor.Field("login")
-                .Argument("username", arg => arg.Type<NonNullType<StringType>>())
-                .Argument("password", arg => arg.Type<NonNullType<StringType>>())
-                .Argument("rectoken", arg => arg.Type<NonNullType<StringType>>())
-                .Argument("recver", arg => arg.Type<NonNullType<IntType>>())
+                .Argument(Agrs.USERNAME, arg => arg.Type<NonNullType<StringType>>())
+                .Argument(Agrs.PASSWORD, arg => arg.Type<NonNullType<StringType>>())
+                .Argument(Agrs.RECTOKEN, arg => arg.Type<NonNullType<StringType>>())
+                .Argument(Agrs.RECVER, arg => arg.Type<NonNullType<IntType>>())
                 .ResolveWith<Resolver>(res => res.Login(default!));
 
             descriptor.Field("logout")
                 .ResolveWith<Resolver>(res => res.Logout(default!));
 
             descriptor.Field("register")
-                .Argument("username", arg => arg.Type<NonNullType<StringType>>())
-                .Argument("username", arg => arg.Type<NonNullType<StringType>>())
-                .Argument("email", arg => arg.Type<NonNullType<StringType>>())
-                .Argument("recaptcha", arg => arg.Type<NonNullType<StringType>>())
+                .Argument(Agrs.USERNAME, arg => arg.Type<NonNullType<StringType>>())
+                .Argument(Agrs.PASSWORD, arg => arg.Type<NonNullType<StringType>>())
+                .Argument(Agrs.EMAIL, arg => arg.Type<NonNullType<StringType>>())
+                .Argument(Agrs.RECAPTCHA, arg => arg.Type<NonNullType<StringType>>())
                 .ResolveWith<Resolver>(res => res.Register(default!));
         }
 
@@ -47,11 +57,11 @@ namespace S84Account.GraphQL.Mutation
             private static readonly string RECATPCHA_V2_SECRET_KEY = Env.GetString("RECATPCHA_V2_SECRET_KEY");
             private static readonly string RECATPCHA_V3_SECRET_KEY = Env.GetString("RECATPCHA_V3_SECRET_KEY");
 
-            public async Task<bool> Login(IResolverContext ctx) {
-                string username = ctx.ArgumentValue<string>("username");
-                string password = ctx.ArgumentValue<string>("password");
-                string rectoken = ctx.ArgumentValue<string>("rectoken");
-                int recver = ctx.ArgumentValue<int>("rectoken");
+            public async Task<bool> Login(IResolverContext ctx) { 
+                string username = ctx.ArgumentValue<string>(Agrs.USERNAME);
+                string password = ctx.ArgumentValue<string>(Agrs.PASSWORD);
+                string rectoken = ctx.ArgumentValue<string>(Agrs.RECTOKEN);
+                int recver = ctx.ArgumentValue<int>(Agrs.RECVER);
 
                 IHttpContextAccessor httpContextAccessor = ctx.Service<IHttpContextAccessor>();
 
@@ -119,10 +129,10 @@ namespace S84Account.GraphQL.Mutation
             }
 
             public async Task<bool> Register(IResolverContext ctx) {
-                string username = ctx.ArgumentValue<string>("username");
-                string password = ctx.ArgumentValue<string>("password");
-                string email = ctx.ArgumentValue<string>("email");
-                string recaptcha = ctx.ArgumentValue<string>("recaptcha");
+                string username = ctx.ArgumentValue<string>(Agrs.USERNAME);
+                string password = ctx.ArgumentValue<string>(Agrs.PASSWORD);
+                string email = ctx.ArgumentValue<string>(Agrs.EMAIL);
+                string recaptcha = ctx.ArgumentValue<string>(Agrs.RECAPTCHA);
 
                 if (!(await VerifyRecaptcha(recaptcha))) throw Util.Exception(HttpStatusCode.Forbidden);
                 try {
