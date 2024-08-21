@@ -1,26 +1,41 @@
 ﻿using IdGen;
 using System.ComponentModel.DataAnnotations.Schema;
 using DotNetEnv;
+using System.ComponentModel.DataAnnotations;
 namespace S84Account.Model
 {
     [Table("account")]
     public class AccountModel
     {
-        private enum Genders {
+        public enum Genders {
             Male = 1,
             Female = 2,
             Other = 0
         }
 
-        public long Id { get; set; }
-        public string Username { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
-        public int Gender { get; set; } = (int)Genders.Other;
-        public int Phone { get; set; }
-        public string Address { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string Idcode { get; set; } = string.Empty;
+        public long? Id { get; set; }
+        public string? Username { get; set; }
+
+        [GraphQLIgnore]
+        public string? Password { get; set; }
+
+        public string? Fullname { get; set; }
+
+        public int? Gender { get; set; }
+
+        public DateTime? Birthdate { get; set; }
+
+        public string? Phone { get; set; }
+
+        public string? Address { get; set; }
+
+        public string? Email { get; set; }
+        public string? Idcode { get; set; }
+
+        [Column("created_at")]
+        [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
+        public DateTime? Createdat { get; set; }
+
         public static long CreateId() => AccountID.CreateId();
 
         private static class AccountID {
