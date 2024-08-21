@@ -2,8 +2,8 @@
 using HotChocolate.AspNetCore;
 using S84Account.Data;
 using S84Account.GraphQL.Middleware;
-using S84Account.GraphQL.MutationType;
-using S84Account.GraphQL.QueryType;
+using S84Account.GraphQL.Mutation;
+using S84Account.GraphQL.Query;
 using S84Account.Service;
 using DotNetEnv;
 
@@ -55,7 +55,7 @@ namespace S84Account {
             app.UseCors("AllowAllOrigins");
             app.MapGraphQL("/gql")
                 .WithOptions(new GraphQLServerOptions {
-                    EnableSchemaRequests = Util.IsDevelopment(),
+                    EnableSchemaRequests = Util.IsDevelopment(), //?sdl
                     Tool = {
                         Enable = Util.IsDevelopment(),
                     }
