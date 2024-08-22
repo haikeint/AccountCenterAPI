@@ -11,12 +11,14 @@ namespace S84Account.GraphQL.Query
         {
             descriptor.Name("Query");
             descriptor.Field("checkAccountExist")
+                .Argument("username", arg => arg.Type<NonNullType<StringType>>())
                 .ResolveWith<Resolver>(res => res.CheckAccountExist(default!));
         }
 
         private class Resolver(IDbContextFactory<MysqlContext> contextFactory) {
             private readonly IDbContextFactory<MysqlContext> _contextFactory = contextFactory;
             public async Task<bool> CheckAccountExist(string username) {
+                Console.WriteLine(username);
                 AccountModel? accountModel = null;
 
                 try {

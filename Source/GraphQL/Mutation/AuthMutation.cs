@@ -37,7 +37,8 @@ namespace S84Account.GraphQL.Mutation
                 .ResolveWith<Resolver>(res => res.Login(default!));
 
             descriptor.Field("logout")
-                .ResolveWith<Resolver>(res => res.Logout(default!));
+                .Resolve(ctx => Resolver.Logout(ctx.Service<IHttpContextAccessor>()));
+
 
             descriptor.Field("register")
                 .Argument(Agrs.USERNAME, arg => arg.Type<NonNullType<StringType>>())
@@ -118,7 +119,7 @@ namespace S84Account.GraphQL.Mutation
                 throw Util.Exception(HttpStatusCode.Unauthorized);
             }
 
-            public bool Logout([Service] IHttpContextAccessor httpContextAccessor) {
+            public static bool Logout([Service] IHttpContextAccessor httpContextAccessor) {
                 try {
                     HttpContext? httpCTX = httpContextAccessor.HttpContext;
                     httpCTX?.Response.Cookies.Delete(EnvirConst.AccessToken);

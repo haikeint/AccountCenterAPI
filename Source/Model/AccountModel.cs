@@ -2,6 +2,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using DotNetEnv;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 namespace S84Account.Model
 {
     [Table("account")]
@@ -13,9 +14,9 @@ namespace S84Account.Model
             Other = 0
         }
 
+        
         public long? Id { get; set; }
         public string? Username { get; set; }
-
         [GraphQLIgnore]
         public string? Password { get; set; }
 
@@ -33,8 +34,12 @@ namespace S84Account.Model
         public string? Idcode { get; set; }
 
         [Column("created_at")]
-        [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public DateTime? Createdat { get; set; }
+
+        [Column("updated_at")]
+        [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
+        public DateTime? Updatedat { get; set; }
 
         public static long CreateId() => AccountID.CreateId();
 

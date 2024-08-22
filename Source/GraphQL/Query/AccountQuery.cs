@@ -20,7 +20,7 @@ namespace S84Account.GraphQL.Query
                 .Use<AuthorizedMiddleware>()
                 .ResolveWith<Resolver>(res => res.GetAccount(default!));
 
-            descriptor.Field("Accounts")
+            descriptor.Field("accounts")
                 .ResolveWith<Resolver>(res => res.GetAccounts(default!));
 
             descriptor.Field("test")
