@@ -10,6 +10,7 @@ using HotChocolate.Resolvers;
 using System.Security.Cryptography;
 using MySqlConnector;
 using System.Text.Json.Serialization;
+using S84Account.Source.Service;
 
 namespace S84Account.GraphQL.Mutation
 {
@@ -52,12 +53,6 @@ namespace S84Account.GraphQL.Mutation
             private readonly IDbContextFactory<MysqlContext> _contextFactory = contextFactory;
             private readonly RedisConnectionPool _redisPool = redisConnectionPool;
 
-            private static readonly int ITERATIONS = Env.GetInt("PBKDF2_ITERATIONS");
-            private static readonly float ACCEPT_SCORE = float.Parse(Env.GetString("RECATPCHA_V3_ACCEPT_SCORE"));
-
-            private static readonly string RECATPCHA_V2_SECRET_KEY = Env.GetString("RECATPCHA_V2_SECRET_KEY");
-            private static readonly string RECATPCHA_V3_SECRET_KEY = Env.GetString("RECATPCHA_V3_SECRET_KEY");
-
             public async Task<bool> Login(IResolverContext ctx) { 
                 string username = ctx.ArgumentValue<string>(Agrs.USERNAME);
                 string password = ctx.ArgumentValue<string>(Agrs.PASSWORD);
@@ -68,7 +63,7 @@ namespace S84Account.GraphQL.Mutation
 
                 AccountModel? accountModel = null;
 
-                if (!(await VerifyRecaptcha(rectoken, recver))) throw Util.Exception(HttpStatusCode.Forbidden, "Unvalid token");
+                if (!(await Recaptcha.Verify(rectoken, recver))) throw Util.Exception(HttpStatusCode.Forbidden, "Unvalid token");
                 try {
                     RedisValue[] accountRedis = Redis.HashGet(_redisPool, redisCTX => {
                         RedisValue[] result = redisCTX.HashGet(username, ["Id", "Password"]);
@@ -105,7 +100,7 @@ namespace S84Account.GraphQL.Mutation
                             });
                         }
 
-                        if (VerifyPassword(password, accountModel.Password)) {
+                        if (Password.Verify(password, accountModel.Password)) {
                             HttpContext? httpCTX = httpContextAccessor.HttpContext;
                             string host = httpCTX?.Request.Host.ToString() ?? string.Empty;
                             string jwtToken = JWT.GenerateES384(accountModel.Id.ToString() ?? string.Empty, JWT.ISSUER, host);
@@ -135,12 +130,12 @@ namespace S84Account.GraphQL.Mutation
                 string email = ctx.ArgumentValue<string>(Agrs.EMAIL);
                 string recaptcha = ctx.ArgumentValue<string>(Agrs.RECAPTCHA);
 
-                if (!(await VerifyRecaptcha(recaptcha))) throw Util.Exception(HttpStatusCode.Forbidden);
+                if (!(await Recaptcha.Verify(recaptcha))) throw Util.Exception(HttpStatusCode.Forbidden);
                 try {
                     AccountModel accountModel = new() {
                         Id = AccountModel.CreateId(),
                         Username = username,
-                        Password = HashPassword(password),
+                        Password = Password.Hash(password),
                         Email = email,
                     };
                     MysqlContext dbCTX = _contextFactory.CreateDbContext();
@@ -154,83 +149,12 @@ namespace S84Account.GraphQL.Mutation
                 throw Util.Exception(HttpStatusCode.BadRequest);
             }
 
-            private static async Task<bool> VerifyRecaptcha(string recToken, int version = 2) {
-                if(Util.IsDevelopment()) return true;
-                string verifyURL = "https://www.google.com/recaptcha/api/siteverify";
-                Dictionary<string, string> formData = new()
-                {
-                    { "secret", version == 2 ? RECATPCHA_V2_SECRET_KEY : RECATPCHA_V3_SECRET_KEY },
-                    { "response", recToken }
-                };
-                FormUrlEncodedContent content = new(formData);
-                try {
-                    using HttpClient client = new();
-                    HttpResponseMessage response = await client.PostAsync(verifyURL, content);
-
-                    if (response.EnsureSuccessStatusCode().StatusCode != HttpStatusCode.OK) return false;
-                    ReCaptchaResponse? responseBody = await response.Content.ReadFromJsonAsync<ReCaptchaResponse>();
-                    return version == 2 ? responseBody?.Success ?? false : (responseBody?.Score ?? 0.0)*100 >= ACCEPT_SCORE *100;
-                } catch (HttpRequestException) {
-                    //Console.WriteLine($"Request error: {_.Message}");
-                }
-                return false;
-            }
-
-            private static bool VerifyPassword(string? password, string? storedHash) {
-                if (string.IsNullOrEmpty(password)
-                    || string.IsNullOrEmpty(storedHash)
-                    || !Util.IsBase64String(storedHash)) return false;
-                byte[] hashBytes = Convert.FromBase64String(storedHash);
-                byte[] salt = new byte[16];
-                Array.Copy(hashBytes, 0, salt, 0, 16);
-
-                using Rfc2898DeriveBytes pbkdf2 = new(password, salt, ITERATIONS, HashAlgorithmName.SHA384);
-                byte[] hash = pbkdf2.GetBytes(48);
-
-                byte[] computedHashBytes = new byte[64];
-                Array.Copy(salt, 0, computedHashBytes, 0, 16);
-                Array.Copy(hash, 0, computedHashBytes, 16, 48);
-                return CryptographicOperations.FixedTimeEquals(hashBytes, computedHashBytes);
-            }
-
-            private static string HashPassword(string password) {
-                byte[] salt = new byte[16];
-                RandomNumberGenerator.Fill(salt);
-
-                using Rfc2898DeriveBytes pbkdf2 = new(password, salt, ITERATIONS, HashAlgorithmName.SHA384);
-                byte[] hash = pbkdf2.GetBytes(48);
-                byte[] hashBytes = new byte[64];
-                Array.Copy(salt, 0, hashBytes, 0, 16);
-                Array.Copy(hash, 0, hashBytes, 16, 48);
-                return Convert.ToBase64String(hashBytes);
-            }
-
             private static bool IsUniqueConstraintViolation(DbUpdateException exception) {
                 int duplicateCode = 1062;
                 if (exception.InnerException is MySqlException mySqlException) {
                     return mySqlException.Number == duplicateCode;
                 }
                 return false;
-            }
-
-            private class ReCaptchaResponse {
-                [JsonPropertyName("success")]
-                public bool Success { get; set; }
-
-                [JsonPropertyName("challenge_ts")]
-                public DateTime ChallengeTimestamp { get; set; }
-
-                [JsonPropertyName("apk_package_name")]
-                public string? ApkPackageName { get; set; }
-
-                [JsonPropertyName("error-codes")]
-                public List<string>? ErrorCodes { get; set; }
-
-                [JsonPropertyName("action")]
-                public string? Action { get; set; }
-
-                [JsonPropertyName("score")]
-                public float? Score { get; set; }
             }
         }
     }
