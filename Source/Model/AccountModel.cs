@@ -3,18 +3,19 @@ using System.ComponentModel.DataAnnotations.Schema;
 using DotNetEnv;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
+using System;
 namespace S84Account.Model
 {
     [Table("account")]
     public class AccountModel
     {
         public enum Genders {
+            Female = 0,
             Male = 1,
-            Female = 2,
-            Other = 0
+            Other = 2
         }
 
-        
+        private DateTime? _birthdate; 
         public long? Id { get; set; }
         public string? Username { get; set; }
         [GraphQLIgnore]
@@ -24,7 +25,7 @@ namespace S84Account.Model
 
         public int? Gender { get; set; }
 
-        public DateTime? Birthdate { get; set; }
+        //public DateTime? Birthdate { get; set; }
 
         public string? Phone { get; set; }
 
@@ -32,6 +33,13 @@ namespace S84Account.Model
 
         public string? Email { get; set; }
         public string? Idcode { get; set; }
+
+        public DateTime Birthdate {
+            get { return _birthdate ?? DateTime.MinValue; }
+            set { 
+                _birthdate = TimeZoneInfo.ConvertTime(value, _timeZoneInfo);
+            }
+        }
 
         [Column("created_at")]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
@@ -42,6 +50,8 @@ namespace S84Account.Model
         public DateTime? Updatedat { get; set; }
 
         public static long CreateId() => AccountID.CreateId();
+
+        private static readonly TimeZoneInfo _timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
 
         private static class AccountID {
             private static readonly IdGenerator _generator = CreateGenerator();
