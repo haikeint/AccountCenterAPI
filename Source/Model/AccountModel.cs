@@ -34,10 +34,10 @@ namespace S84Account.Model
         public string? Email { get; set; }
         public string? Idcode { get; set; }
 
-        public DateTime Birthdate {
+        public DateTime? Birthdate {
             get { return _birthdate ?? DateTime.MinValue; }
             set { 
-                _birthdate = TimeZoneInfo.ConvertTime(value, _timeZoneInfo);
+                _birthdate = value is not null ? TimeZoneInfo.ConvertTime((DateTime)value, _timeZoneInfo) : null;
             }
         }
 
