@@ -17,13 +17,13 @@ namespace S84Account.GraphQL.Mutation
         {
             descriptor.Name("Mutation");
 
-            descriptor.Field("update")
-                .Argument("account", a=> a.Type<NonNullType<AccountModelType>>())
+            descriptor.Field("updateInfo")
+                .Argument("objectInput", a=> a.Type<NonNullType<UpdateInfoInputType>>())
                 .Use<AuthorizedMiddleware>()
             .ResolveWith<Resolver>(res => res.UpdateInfo(default!));
 
             descriptor.Field("updateSecure")
-                .Argument("objecInput", arg => arg.Type<NonNullType<UpdateSecureInputType>>())
+                .Argument("objectInput", arg => arg.Type<NonNullType<UpdateSecureInputType>>())
                 .Use<AuthorizedMiddleware>()
                 .ResolveWith<Resolver>(res => res.UpdateSecure(default!));
         }
@@ -36,8 +36,15 @@ namespace S84Account.GraphQL.Mutation
             {
                 long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
 
-                AccountModel accountInput = ctx.ArgumentValue<AccountModel>("account");
-                accountInput.Id = UserId;
+                UpdateInfoInput updateInfoInput = ctx.ArgumentValue<UpdateInfoInput>("objectInput");
+
+                AccountModel accountInput = new() {
+                    Id = UserId,
+                    Address = updateInfoInput.Address is null ? null : updateInfoInput.Address,
+                    Birthdate = updateInfoInput.Birthdate is null ? null : updateInfoInput.Birthdate,
+                    Fullname = updateInfoInput.Fullname is null ? null : updateInfoInput.Fullname,
+                    Gender = updateInfoInput.Gender is null ? null : updateInfoInput.Gender,
+                };
 
                 MysqlContext mysqlContext = _contextFactory.CreateDbContext();
                 mysqlContext.Account.Attach(accountInput);
@@ -51,7 +58,7 @@ namespace S84Account.GraphQL.Mutation
             public async Task<bool> UpdateSecure(IResolverContext ctx) {
                 long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
 
-                UpdateSecureInput updateInput = ctx.ArgumentValue<UpdateSecureInput>("objecInput");
+                UpdateSecureInput updateInput = ctx.ArgumentValue<UpdateSecureInput>("objectInput");
 
                 MysqlContext mysqlContext = _contextFactory.CreateDbContext();
                 AccountModel? accountModel = await mysqlContext.Account
@@ -76,11 +83,13 @@ namespace S84Account.GraphQL.Mutation
                     );
                 }
 
-                if(accountModel.Email is null && updateInput.NewEmail is not null) {
+                if((accountModel.Email is null && updateInput.NewEmail is not null)
+                    || (accountModel.Email is not null && accountModel.Email == updateInput.OldEmail)) {
                     accountUpdate.Email = updateInput.NewEmail;
-                }
+                } 
 
-                if (accountModel.Phone is null && updateInput.NewPhone is not null) { 
+                if ((accountModel.Phone is null && updateInput.NewPhone is not null) 
+                    || (accountModel.Phone is not null && accountModel.Phone == updateInput.OldPhone)) { 
                     accountUpdate.Phone = updateInput.NewPhone;
                 }
 

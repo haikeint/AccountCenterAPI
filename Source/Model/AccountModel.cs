@@ -35,7 +35,7 @@ namespace S84Account.Model
         public string? Idcode { get; set; }
 
         public DateTime? Birthdate {
-            get { return _birthdate ?? DateTime.MinValue; }
+            get => _birthdate;
             set { 
                 _birthdate = value is not null ? TimeZoneInfo.ConvertTime((DateTime)value, _timeZoneInfo) : null;
             }
