@@ -6,19 +6,20 @@ using S84Account.GraphQL.Mutation;
 using S84Account.GraphQL.Query;
 using S84Account.Service;
 using DotNetEnv;
+using System.Net.Mail;
+using System.Net;
 
 namespace S84Account {
     public class Program {
         public static void Main(string[] args) {
             Env.Load();
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
-
             //builder.WebHost.ConfigureKestrel(serverOptions => {
             //    serverOptions.ListenLocalhost(Env.GetInt("APP_PORT"), (listenOptions) => {
             //        if (Util.IsDevelopment()) listenOptions.UseHttps();
             //    });
             //});
-
+            builder.Services.AddControllersWithViews();
             builder.Services.AddPooledDbContextFactory<MysqlContext>(options =>
                 options.UseMySql(Util.GetConnectionString("MYSQL"),
                     new MySqlServerVersion(new Version(8, 0, 37))));
@@ -28,7 +29,7 @@ namespace S84Account {
                     Env.GetString("REDIS_HOST"),
                     Env.GetInt("REDIS_POLLSIZE"));
             });
-
+            
             builder.Services.AddCors(options => {
                 options.AddPolicy("AllowAllOrigins",
                     policy => {
@@ -53,6 +54,7 @@ namespace S84Account {
 
             WebApplication app = builder.Build();
             app.UseCors("AllowAllOrigins");
+            app.MapControllers();
             app.MapGraphQL("/gql")
                 .WithOptions(new GraphQLServerOptions {
                     EnableSchemaRequests = Util.IsDevelopment(), //?sdl
@@ -60,10 +62,11 @@ namespace S84Account {
                         Enable = Util.IsDevelopment(),
                     }
                 });
-            app.UseRouting();
-            app.MapGet("/api/{username}", (string username) => {
+            
+            //app.UseRouting();
+            //app.MapGet("/api/{username}", (string username) => {
 
-            });
+            //});
             //app.Use(async (context, next) =>
             //{
             //    // Custom logic before GraphQL processing
@@ -77,7 +80,6 @@ namespace S84Account {
             //    // Custom logic after GraphQL processing
             //    Console.WriteLine("After GraphQL");
             //});
-
             app.Run();
         }
     }

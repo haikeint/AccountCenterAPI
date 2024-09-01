@@ -13,6 +13,18 @@ namespace S84Account.Service
 {
     public static class Util
     {
+        public static string RandomNumber(int rangeOfNumber) {
+            Random random = new ();
+
+            int[] randomNumbers = new int[rangeOfNumber];
+
+            for (int i = 0; i < randomNumbers.Length; i++)
+            {
+                randomNumbers[i] = random.Next(0, 10);
+            }
+
+            return string.Join("", randomNumbers);
+        }
         public static int GetHashIndex(string input, int numberOfDatabases) {
             uint hash = ComputeXxHash32(input);
             return (int)(hash % (uint)numberOfDatabases);
