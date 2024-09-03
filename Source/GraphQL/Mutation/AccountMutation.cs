@@ -5,7 +5,7 @@ using HotChocolate.Resolvers;
 using Microsoft.EntityFrameworkCore;
 using S84Account.Data;
 using S84Account.Config;
-using S84Account.Service;
+using S84Account.Helper;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Net;
 

@@ -5,9 +5,9 @@ using S84Account.GraphQL.Middleware;
 using S84Account.GraphQL.Mutation;
 using S84Account.GraphQL.Query;
 using S84Account.Service;
+using S84Account.Helper;
 using DotNetEnv;
-using System.Net.Mail;
-using System.Net;
+using S84Account.Interface;
 
 namespace S84Account {
     public class Program {
@@ -29,7 +29,8 @@ namespace S84Account {
                     Env.GetString("REDIS_HOST"),
                     Env.GetInt("REDIS_POLLSIZE"));
             });
-            
+            builder.Services.AddScoped<ViewRenderService>();
+
             builder.Services.AddCors(options => {
                 options.AddPolicy("AllowAllOrigins",
                     policy => {

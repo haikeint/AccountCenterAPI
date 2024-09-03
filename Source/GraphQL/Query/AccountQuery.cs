@@ -6,8 +6,7 @@ using S84Account.Config;
 using S84Account.Data;
 using S84Account.GraphQL.Middleware;
 using S84Account.Model;
-using S84Account.Service;
-
+using S84Account.Helper;
 namespace S84Account.GraphQL.Query
 {
     public class AccountQuery : ObjectTypeExtension
