@@ -1,12 +1,19 @@
 ﻿using DotNetEnv;
 using System.Net.Mail;
 using System.Net;
+using Microsoft.AspNetCore.Mvc.ViewEngines;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.Mvc;
 
-namespace S84Account.Service {
+namespace S84Account.Helper {
     public static class Mail {
         private static readonly string FROM_EMAIL = Env.GetString("MAIL_FROM");
         private static readonly string FROM_PASSWORD = Env.GetString("MAIL_PASSSWORD");
-
+   
         public static bool Send(string toEmail, string subject, string body) {
 
             //string toEmail = "haikeint@gmail.com";
@@ -20,10 +27,10 @@ namespace S84Account.Service {
             };
 
             MailMessage mailMessage = new() {
-                From = new MailAddress(FROM_EMAIL, "OTP S84"),
+                From = new MailAddress(FROM_EMAIL, "HBPlay Support"),
                 Subject = subject,
                 Body = body,
-                IsBodyHtml = false
+                IsBodyHtml = true
             };
             mailMessage.To.Add(toEmail);
 

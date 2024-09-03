@@ -9,7 +9,7 @@ using System.Text;
 using S84Account.Config;
 using DotNetEnv;
 using System.Data.HashFunction.xxHash;
-namespace S84Account.Service
+namespace S84Account.Helper
 {
     public static class Util
     {

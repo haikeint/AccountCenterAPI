@@ -1,7 +1,7 @@
 ﻿using DotNetEnv;
 using System.Security.Cryptography;
 
-namespace S84Account.Service {
+namespace S84Account.Helper {
     public static class Password {
         private static readonly int ITERATIONS = Env.GetInt("PBKDF2_ITERATIONS");
         public static string Hash(string password) {

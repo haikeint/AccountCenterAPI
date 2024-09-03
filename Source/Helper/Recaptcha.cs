@@ -3,7 +3,7 @@ using S84Account.Service;
 using System.Net;
 using System.Text.Json.Serialization;
 
-namespace S84Account.Source.Service {
+namespace S84Account.Helper {
     public static class Recaptcha {
         private static readonly float ACCEPT_SCORE = float.Parse(Env.GetString("RECATPCHA_V3_ACCEPT_SCORE"));
         private static readonly string RECATPCHA_V2_SECRET_KEY = Env.GetString("RECATPCHA_V2_SECRET_KEY");

@@ -7,7 +7,7 @@ using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Buffers.Text;
 using DotNetEnv;
-namespace S84Account.Service
+namespace S84Account.Helper
 {
     public static class JWT
     {

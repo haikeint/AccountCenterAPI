@@ -1,7 +1,7 @@
 ﻿using S84Account.Data;
 using StackExchange.Redis;
 
-namespace S84Account.Service {
+namespace S84Account.Helper {
     public static class Redis {
         public static void Handle(RedisConnectionPool pool ,Action<IDatabase> hanleDBRedis) {
             //int poolSize = 100;
