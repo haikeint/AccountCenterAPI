@@ -1,7 +1,7 @@
 ﻿using HotChocolate.Resolvers;
 using System.Security.Principal;
 using System.Net;
-using S84Account.Service;
+using S84Account.Helper;
 using S84Account.Config;
 
 namespace S84Account.GraphQL.Middleware

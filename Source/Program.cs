@@ -7,7 +7,6 @@ using S84Account.GraphQL.Query;
 using S84Account.Service;
 using S84Account.Helper;
 using DotNetEnv;
-using S84Account.Interface;
 
 namespace S84Account {
     public class Program {
