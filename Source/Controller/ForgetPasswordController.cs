@@ -1,26 +1,24 @@
 ﻿namespace S84Account.Controller {
     using Microsoft.AspNetCore.Mvc;
-    using S84Account.Service;
-    using S84Account.Source.Service;
-    using static HotChocolate.ErrorCodes;
-    using System.Net;
-    using Microsoft.EntityFrameworkCore.Internal;
+    using S84Account.Helper;
     using Microsoft.EntityFrameworkCore;
     using S84Account.Data;
     using S84Account.Model;
-    using Microsoft.Extensions.Hosting;
     using System.Security.Principal;
     using StackExchange.Redis;
-    using Microsoft.EntityFrameworkCore.ChangeTracking;
-    using S84Account.GraphQL.InputType;
-    using System.Text.Json;
     using System;
+    using S84Account.Service;
+    using DotNetEnv;
 
     [ApiController]
     [Route("api")]
-    public class ForgetPasswordController(IDbContextFactory<MysqlContext> contextFactory, RedisConnectionPool redisConnectionPool) : ControllerBase {
+    public class ForgetPasswordController(
+            IDbContextFactory<MysqlContext> contextFactory,
+            RedisConnectionPool redisConnectionPool,
+            ViewRenderService viewRenderService) : Controller {
         private readonly IDbContextFactory<MysqlContext> _contextFactory = contextFactory;
         private readonly RedisConnectionPool _redisPool = redisConnectionPool;
+        private readonly ViewRenderService _viewRenderService = viewRenderService;
 
         private readonly string FORGET_CODE = "ForgetCode_";
 
@@ -90,7 +88,17 @@
             });
 
             string code = Util.RandomNumber(6);
-            if (!Mail.Send(accountModel.Email, "Mã xác thực từ S84", $"Mã xác thực của bạn là:{code}")) {
+
+            string emailBody = await _viewRenderService.RenderToStringAsync(
+                "~/Source/View/TemplateEmail.cshtml",
+                new {
+                    CurrentTime = DateTime.Now.ToString("dd-MM-yyyy"),
+                    UrlStatic = Env.GetString("URL_STATIC"),
+                    Username = identity.Name,
+                    OTPCode = code
+                });
+
+            if (!Mail.Send(accountModel.Email, "Mã OTP từ HBPlay", emailBody)) {
                 return Ok(new { Error = "Lỗi không xác định" });
             }
             Redis.Handle(_redisPool, redisCTX => {
@@ -116,10 +124,10 @@
                 return redisCTX.HashGet($"{FORGET_CODE}{identity.Name}", ["Code"]);
             });
 
-            if(!redisResult[0].HasValue) return BadRequest(new {Error = "Mã xác thực không tồn tại."});
+            if(!redisResult[0].HasValue) return BadRequest(new {Error = "Mã OTP không tồn tại."});
 
             if(!(Util.HASH256(code) == redisResult[0])) {
-                return BadRequest(new { Error = "Mã xác thực không đúng."});
+                return BadRequest(new { Error = "Mã OTP không đúng."});
             }
 
             Redis.Handle(_redisPool, redisContext => {
