@@ -100,7 +100,7 @@ namespace ACAPI.Controller
             string code = Util.RandomNumber(6);
 
             string emailBody = await _viewRenderService.RenderToStringAsync(
-                "~/Source/View/TemplateEmail.cshtml",
+                "~/View/TemplateEmail.cshtml",
                 new
                 {
                     CurrentTime = DateTime.Now.ToString("dd-MM-yyyy"),

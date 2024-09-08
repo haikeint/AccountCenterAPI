@@ -7,6 +7,7 @@ using System.Net;
 using HotChocolate.Resolvers;
 using MySqlConnector;
 using ACAPI.Helper;
+using DotNetEnv;
 
 namespace ACAPI.GraphQL.Mutation
 {
@@ -114,8 +115,21 @@ namespace ACAPI.GraphQL.Mutation
                         {
                             HttpContext? httpCTX = httpContextAccessor.HttpContext;
                             string host = httpCTX?.Request.Host.ToString() ?? string.Empty;
-                            string jwtToken = JWT.GenerateES384(accountModel.Id.ToString() ?? string.Empty, JWT.ISSUER, host);
+                            string jwtToken = JWT.GenerateES384(
+                                accountModel.Id.ToString() ?? string.Empty, 
+                                JWT.ISSUER, 
+                                host, 
+                                DateTime.UtcNow.AddDays(Env.GetInt("EXPIRE_LOGIN")));
+
                             httpCTX?.Response.Cookies.Append(EnvirConst.AccessToken, jwtToken, Util.CookieOptions());
+                            httpCTX?.Response.Cookies.Append(EnvirConst.AccessTokenExpire, DateTimeOffset.UtcNow.AddDays(Env.GetInt("EXPIRE_LOGIN")).ToString("o"), new CookieOptions
+                            {
+                                Path = "/",
+                                HttpOnly = false,
+                                Secure = true,
+                                SameSite = SameSiteMode.None,
+                                Expires = DateTimeOffset.UtcNow.AddDays(Env.GetInt("EXPIRE_LOGIN"))
+                            });
                             return true;
                         }
                     }
