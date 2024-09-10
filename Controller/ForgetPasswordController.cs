@@ -10,8 +10,9 @@ using DotNetEnv;
 namespace ACAPI.Controller
 {
     using Microsoft.AspNetCore.Mvc;
+    
     [ApiController]
-    [Route("api")]
+    [Route("api/forgetpassword")]
     public class ForgetPasswordController(
             IDbContextFactory<MysqlContext> contextFactory,
             RedisConnectionPool redisConnectionPool,
@@ -23,7 +24,7 @@ namespace ACAPI.Controller
 
         private readonly string FORGET_CODE = "ForgetCode_";
 
-        [HttpGet("forgetpassword/username/{username}")]
+        [HttpGet("username/{username}")]
         public async Task<IActionResult> CheckUser(string username, [FromQuery] string token)
         {
             if (!(await Recaptcha.Verify(token, 2))) return Ok(new
@@ -64,8 +65,8 @@ namespace ACAPI.Controller
             });
         }
 
-        [HttpGet("forgetpassword/sendcode")]
-        public async Task<IActionResult> SendCode([FromQuery] string token)
+        [HttpGet("sendcode-to-email")]
+        public async Task<IActionResult> SendCodeToEmail([FromQuery] string token)
         {
             IIdentity? identity = JWT.ValidateES384(token, JWT.ISSUER, Request.Host.Value);
             if (!(identity is not null && identity.IsAuthenticated)) return Ok(new { Error = "Token hết hạn" });
@@ -127,8 +128,8 @@ namespace ACAPI.Controller
             });
         }
 
-        [HttpGet("forgetpassword/verifycode/{code}")]
-        public async Task<IActionResult> VerifyCode(string code, [FromQuery] string password, [FromQuery] string token)
+        [HttpGet("verifycode-from-email/{code}")]
+        public async Task<IActionResult> VerifyCodeFromEmail(string code, [FromQuery] string password, [FromQuery] string token)
         {
 
             IIdentity? identity = JWT.ValidateES384(token, JWT.ISSUER, Request.Host.Value);
