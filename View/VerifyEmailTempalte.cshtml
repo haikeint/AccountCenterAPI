@@ -1,0 +1,128 @@
+﻿@model dynamic
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HBPlay</title>
+    <link href="https://fonts.googleapis.com/css?family=Muli&display=swap"
+          rel="stylesheet" />
+</head>
+<body style="font-family: 'Muli', sans-serif">
+    <div style="
+                display: block;
+                text-align: -webkit-center;
+                unicode-bidi: isolate;
+            ">
+        <div style="
+                    width: 100%;
+                    max-width: 500px;
+                    background-color: #f6f6f6;
+                    padding: 25px;
+                ">
+            <div style="text-align: left">
+                <img src="@Model.UrlStatic/hbplay.png"
+                     height="33" />
+            </div>
+            <div style="
+                        margin-top: 2rem;
+                        background-color: #ffffff;
+                        text-align: center;
+                        padding: 2rem;
+                    ">
+                <div style="font-size: 2rem">Chào @Model.Username,</div>
+                <div style="
+                            margin-top: 2rem;
+                            font-size: 18px;
+                            text-align: left;
+                        ">
+                    Vui lòng bấm vào nút bên dưới để hoàn tất việc xác thực Email.
+                </div>
+                <div style="
+                            margin-top: 0.5rem;
+                            font-size: 18px;
+                            text-align: left;
+                        ">
+                    Hiệu lực trong
+                    <span style="color: rgb(242, 47, 70); font-weight: bold">@Model.Expire</span>
+                    phút.
+                </div>
+                <div style="
+                            margin-top: 2.5rem;
+                            font-size: 18px;
+                            text-align: center;
+                        ">
+                    <a href="@Model.VerifyLink"
+                       target="_blank"
+                       style="
+                                padding: 12px 40px 12px 40px;
+                                background-color: #17a2b8;
+                                font-weight: bold;
+                                color: #ffffff;
+                                text-decoration: none;
+                            ">
+                        Xác thực Email ngay
+                    </a>
+                </div>
+            </div>
+            <div style="
+                        background-color: #6e6e6e;
+                        text-align: center;
+                        padding: 2rem;
+                        color: #ffffff;
+                    ">
+                <div style="font-size: 18px">Cần trợ giúp ?</div>
+                <div style="margin-top: 0.5rem; font-size: 18px">
+                    Hãy hỏi tại
+                    <a href="mailto:support@hbplay.vn"
+                       style="
+                                color: #17a2b8;
+                                text-decoration: none;
+                                font-weight: bold;
+                            ">support@hbplay.vn</a>
+                </div>
+                <div style="margin-top: 0.5rem">hoặc</div>
+                <div style="margin-top: 0.5rem; font-size: 18px">
+                    Trung tâm trợ giúp
+                    <span style="color: #17a2b8; font-weight: bold">Help Center</span>
+                    của chúng tôi
+                </div>
+            </div>
+            <div style="
+                        background-color: #ffffff;
+                        text-align: center;
+                        padding: 2rem;
+                        color: #6e6e6e;
+                    ">
+                <div>HBPlay Company</div>
+                <div style="margin-top: 0.5rem">Địa chỉ: TP.HCM</div>
+                <div style="text-align: center; margin-top: 1rem">
+                    <a style="display: inline-block; margin: 0.2rem">
+                        <img width="36px"
+                             alt="Facebook"
+                             src="@Model.UrlStatic/email-template-icon-facebook.png" />
+                    </a>
+                    <a style="display: inline-block; margin: 0.2rem">
+                        <img width="36px"
+                             alt="Instagram"
+                             src="@Model.UrlStatic/email-template-icon-instagram.png" />
+                    </a>
+                    <a style="display: inline-block; margin: 0.2rem">
+                        <img width="36px"
+                             alt="Twitter"
+                             src="@Model.UrlStatic/email-template-icon-twitter.png" />
+                    </a>
+                    <a style="display: inline-block; margin: 0.2rem">
+                        <img width="36px"
+                             alt="Youtube"
+                             src="@Model.UrlStatic/email-template-icon-youtube.png" />
+                    </a>
+                </div>
+                <div style="margin-top: 0.5rem">
+                    Copyright © 2024 Company. All rights reserved.
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

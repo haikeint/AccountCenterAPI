@@ -31,6 +31,11 @@ namespace ACAPI.Model
         public string? Address { get; set; }
 
         public string? Email { get; set; }
+
+        [Column("is_email_verified")]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public bool? IsEmailVerified { get; set; }
+
         public string? Idcode { get; set; }
 
         public DateTime? Birthdate
