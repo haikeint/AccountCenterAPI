@@ -7,20 +7,58 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ACAPI.Service
 {
-    public class ViewRenderService(ICompositeViewEngine viewEngine,
-                                 ITempDataProvider tempDataProvider,
-                                 IServiceProvider serviceProvider)
+    //public class ViewRenderService(ICompositeViewEngine viewEngine,
+    //                             ITempDataProvider tempDataProvider,
+    //                             IServiceProvider serviceProvider)
+    //{
+    //    private readonly ICompositeViewEngine _viewEngine = viewEngine;
+    //    private readonly ITempDataProvider _tempDataProvider = tempDataProvider;
+    //    private readonly IServiceProvider _serviceProvider = serviceProvider;
+
+    //    public async Task<string> RenderToStringAsync(string viewPath, object model)
+    //    {
+    //        var httpContext = new DefaultHttpContext { RequestServices = _serviceProvider };
+    //        var actionContext = new ActionContext(httpContext, new RouteData(), new ActionDescriptor());
+
+    //        using StringWriter sw = new();
+    //        var viewResult = _viewEngine.GetView("", viewPath, true);
+
+    //        if (viewResult.View == null)
+    //        {
+    //            throw new FileNotFoundException($"View '{viewPath}' not found.");
+    //        }
+
+    //        var viewData = new ViewDataDictionary(new EmptyModelMetadataProvider(), new ModelStateDictionary())
+    //        {
+    //            Model = model
+    //        };
+
+    //        var tempData = new TempDataDictionary(actionContext.HttpContext, _tempDataProvider);
+    //        var viewContext = new ViewContext(actionContext, viewResult.View, viewData, tempData, sw, new HtmlHelperOptions());
+
+    //        await viewResult.View.RenderAsync(viewContext);
+    //        return sw.ToString();
+
+    //    }
+    //}
+    public class ViewRenderService(
+        ICompositeViewEngine viewEngine, 
+        ITempDataProvider tempDataProvider,
+        IServiceScopeFactory serviceScopeFactory)
     {
         private readonly ICompositeViewEngine _viewEngine = viewEngine;
         private readonly ITempDataProvider _tempDataProvider = tempDataProvider;
-        private readonly IServiceProvider _serviceProvider = serviceProvider;
+        private readonly IServiceScopeFactory _serviceScopeFactory = serviceScopeFactory;
 
         public async Task<string> RenderToStringAsync(string viewPath, object model)
         {
-            var httpContext = new DefaultHttpContext { RequestServices = _serviceProvider };
+            using var scope = _serviceScopeFactory.CreateScope();
+            var serviceProvider = scope.ServiceProvider;
+        
+            var httpContext = new DefaultHttpContext { RequestServices = serviceProvider };
             var actionContext = new ActionContext(httpContext, new RouteData(), new ActionDescriptor());
 
-            using StringWriter sw = new();
+            using var sw = new StringWriter();
             var viewResult = _viewEngine.GetView("", viewPath, true);
 
             if (viewResult.View == null)
@@ -38,10 +76,8 @@ namespace ACAPI.Service
 
             await viewResult.View.RenderAsync(viewContext);
             return sw.ToString();
-
         }
     }
-
 }
 
 
