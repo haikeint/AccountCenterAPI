@@ -129,7 +129,7 @@ namespace ACAPI.Helper
         {
             return resctx?.Selection?.SyntaxNode?.SelectionSet?.Selections
                 .OfType<FieldNode>()
-                .Select(field => field.Name.Value)
+                .Select(field => field.Name.Value.ToLower())
                 .ToList() ?? [];
         }
 
