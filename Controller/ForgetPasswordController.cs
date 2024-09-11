@@ -101,12 +101,14 @@ namespace ACAPI.Controller
             string code = Util.RandomNumber(6);
 
             string emailBody = await _viewRenderService.RenderToStringAsync(
-                "~/View/TemplateEmail.cshtml",
+                "~/View/SendCodeEmailTemplate.cshtml",
                 new
                 {
                     CurrentTime = DateTime.Now.ToString("dd-MM-yyyy"),
                     UrlStatic = Env.GetString("URL_STATIC"),
+                    Operation = "khôi phục mật khẩu",
                     Username = identity.Name,
+                    Expire = 1,
                     OTPCode = code
                 });
 
