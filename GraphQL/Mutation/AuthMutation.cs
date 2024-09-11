@@ -66,7 +66,7 @@ namespace ACAPI.GraphQL.Mutation
                 if (!(await Recaptcha.Verify(rectoken, recver))) throw Util.Exception(HttpStatusCode.Forbidden, "Unvalid token");
                 try
                 {
-                    RedisValue[] accountRedis = Redis.HashGet(_redisPool, redisCTX =>
+                    RedisValue[] accountRedis = Redis.GetValue(_redisPool, redisCTX =>
                     {
                         RedisValue[] result = redisCTX.HashGet(username, ["Id", "Password"]);
                         if (result[0].HasValue && result[1].HasValue)

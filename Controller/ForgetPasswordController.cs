@@ -72,7 +72,7 @@ namespace ACAPI.Controller
             if (!(identity is not null && identity.IsAuthenticated)) return Ok(new { Error = "Token hết hạn" });
             if (!(identity.Name is not null)) return Ok(new { Error = "Định dạng token không hợp lệ" });
 
-            RedisValue[] redisResult = Redis.HashGet(_redisPool, redisCTX =>
+            RedisValue[] redisResult = Redis.GetValue(_redisPool, redisCTX =>
             {
                 return redisCTX.HashGet($"{FORGET_CODE}{identity.Name}", ["Code"]);
             });
@@ -138,7 +138,7 @@ namespace ACAPI.Controller
             if (!(identity is not null && identity.IsAuthenticated)) return BadRequest(new { Error = "Token hết hạn" });
             if (!(identity.Name is not null)) return BadRequest(new { Error = "Định dạng token không hợp lệ." });
 
-            RedisValue[] redisResult = Redis.HashGet(_redisPool, redisCTX =>
+            RedisValue[] redisResult = Redis.GetValue(_redisPool, redisCTX =>
             {
                 return redisCTX.HashGet($"{FORGET_CODE}{identity.Name}", ["Code"]);
             });

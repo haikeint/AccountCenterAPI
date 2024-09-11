@@ -36,7 +36,7 @@ namespace ACAPI.Controller {
             string UserId = deserializedPayload?.Id ?? string.Empty;
             string RedisKey = $"{REDIS_VERIFY}{UserId}";
 
-            RedisValue[] accountRedis = Redis.HashGet(_redisPool, redisCTX => {
+            RedisValue[] accountRedis = Redis.GetValue(_redisPool, redisCTX => {
                 RedisValue[] result = redisCTX.HashGet(RedisKey, ["Token"]);
                 if (result[0].HasValue && result[0] == token) {
                     redisCTX.KeyDelete(RedisKey);

@@ -22,30 +22,13 @@ namespace ACAPI.Helper
             }
 
         }
-        public static RedisValue GetValue(RedisConnectionPool pool, Func<IDatabase, RedisValue> hanleDBRedis)
+        public static T GetValue<T>(RedisConnectionPool pool, Func<IDatabase, T> hanleDBRedis)
         {
             //int poolSize = 100;
-            RedisValue result;
             //string configuration = "localhost:7010";
             //using RedisConnectionPool pool = new (configuration, poolSize);
-            ConnectionMultiplexer connection = pool.GetConnection();
-            try
-            {
-                IDatabase db = connection.GetDatabase();
-                result = hanleDBRedis(db);
-            }
-            finally
-            {
-                pool.ReturnConnection(connection);
-            }
-            return result;
-        }
-        public static RedisValue[] HashGet(RedisConnectionPool pool, Func<IDatabase, RedisValue[]> hanleDBRedis)
-        {
-            //int poolSize = 100;
-            RedisValue[] result;
-            //string configuration = "localhost:7010";
-            //using RedisConnectionPool pool = new (configuration, poolSize);
+
+            T result;
             ConnectionMultiplexer connection = pool.GetConnection();
             try
             {

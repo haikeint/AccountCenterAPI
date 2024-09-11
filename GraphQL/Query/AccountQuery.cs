@@ -31,7 +31,6 @@ namespace ACAPI.GraphQL.Query
             public async Task<AccountModel> GetAccount(IResolverContext resolveCTX)
             {
                 string UserId = Util.GetContextData(resolveCTX, EnvirConst.UserId);
-                Console.WriteLine(UserId);
                 IQueryable<AccountModel> account = _contextFactory.CreateDbContext().Account;
                 MysqlContext ctxDB = _contextFactory.CreateDbContext();
 
