@@ -10,9 +10,6 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Net;
 using ACAPI.Service;
 using DotNetEnv;
-using System.Security.Principal;
-using Microsoft.Extensions.Hosting;
-using Microsoft.AspNetCore.Http;
 using StackExchange.Redis;
 using System.Text.Json;
 
@@ -51,8 +48,17 @@ namespace ACAPI.GraphQL.Mutation
             private readonly string REDIS_VERIFY = "verify_";
             public async Task<bool> SendVerifyEmail(IResolverContext ctx) {
                 long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
+                string redisKey = $"{REDIS_VERIFY}{UserId}";
+
+                TimeSpan? ttl = Redis.GetValue(_redisPool, redisCTX => redisCTX.KeyTimeToLive(redisKey));
+
+                if(ttl is not null) {
+                    throw Util.Exception(HttpStatusCode.Forbidden, $"Gửi lại mã xác thực sau {ttl.Value.Minutes} phút");
+                }
+
                 MysqlContext mysqlContext = _contextFactory.CreateDbContext();
-                AccountModel accountModel = await mysqlContext.Account.Where(acc => acc.Id == UserId)
+                AccountModel accountModel = await mysqlContext.Account
+                    .Where(acc => acc.Id == UserId)
                     .Select(acc => new AccountModel {
                         Email = acc.Email,
                         Username = acc.Username,
@@ -60,6 +66,10 @@ namespace ACAPI.GraphQL.Mutation
                 
                 if(accountModel.Email is null) {
                     throw Util.Exception(HttpStatusCode.Forbidden, "Tài khoản chưa có Email"); 
+                }
+
+                if(accountModel.IsEmailVerified is not null && (bool)accountModel.IsEmailVerified) {
+                    throw Util.Exception(HttpStatusCode.Forbidden, "Tài khoản đã xác thực Email");
                 }
                 
                 var payload = new {
@@ -74,12 +84,12 @@ namespace ACAPI.GraphQL.Mutation
                     DateTime.UtcNow.AddMinutes(30));
 
                 Redis.Handle(_redisPool, redisCTX =>
-                    {
-                        redisCTX.HashSet($"{REDIS_VERIFY}{UserId}", [
-                            new HashEntry("Token", jwtToken),
-                            ]);
-                        redisCTX.KeyExpire($"{REDIS_VERIFY}{UserId}", TimeSpan.FromMinutes(30));
-                    });
+                {
+                    redisCTX.HashSet(redisKey, [
+                        new HashEntry("Token", jwtToken),
+                        ]);
+                    redisCTX.KeyExpire(redisKey, TimeSpan.FromMinutes(30));
+                });
 
                 string verifyLink = $"https://localhost:5000/api/auth/verify-email?token={jwtToken}";
 
