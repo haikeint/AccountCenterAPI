@@ -96,27 +96,25 @@ namespace ACAPI.GraphQL.Mutation
             public async Task<string> ChangePhone(IResolverContext ctx) { 
                 string oldPhone = ctx.ArgumentValue<string>("oldPhone");
                 string newPhone = ctx.ArgumentValue<string>("newPhone");
-
+                if(string.IsNullOrWhiteSpace(newPhone)) throw Util.Exception(HttpStatusCode.Forbidden, "SDT không hợp lệ");
+                
                 long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
 
                 MysqlContext mysqlContext = _contextFactory.CreateDbContext();
 
                 AccountModel? accountModel = await mysqlContext.Account
                     .Where(account => account.Id == UserId)
-                    .Select(account => new AccountModel
-                    {
+                    .Select(account => new AccountModel {
                         Username = account.Username,
                         Phone = account.Phone,
                     })
                     .FirstOrDefaultAsync() ?? throw Util.Exception(HttpStatusCode.Forbidden, "Tài khoản không tồn tại.");
 
-                if(accountModel.Phone is null || (accountModel.Phone is not null && accountModel.Phone == oldPhone)) {
-                    Task<int> rowAffect = mysqlContext.Database.ExecuteSqlRawAsync(
-                        MysqlCommand.UPDATE_PHONE_BY_ID, 
-                        newPhone, 
-                        UserId);
-                    if(!(await rowAffect > 0)) throw Util.Exception(HttpStatusCode.Forbidden, "Lỗi không xác định");
-                }
+                Task<int> rowAffect = mysqlContext.Database.ExecuteSqlRawAsync(
+                    MysqlCommand.UPDATE_PHONE_BY_ID, 
+                    newPhone, 
+                    UserId);
+                if(!(await rowAffect > 0)) throw Util.Exception(HttpStatusCode.Forbidden, "Lỗi không xác định");
 
                 PurgeRedis(accountModel.Username);
                 return "Thay đổi số điện thoại thành công";
@@ -127,7 +125,10 @@ namespace ACAPI.GraphQL.Mutation
 
                 string oldEmail = ctx.ArgumentValue<string>("oldEmail");
                 string newEmail = ctx.ArgumentValue<string>("newEmail");
-
+                if(string.IsNullOrWhiteSpace(newEmail)) {
+                    throw Util.Exception(HttpStatusCode.Forbidden, "Email không hợp lệ");
+                }
+                
                 long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
 
                 MysqlContext mysqlContext = _contextFactory.CreateDbContext();
@@ -142,18 +143,25 @@ namespace ACAPI.GraphQL.Mutation
                     })
                     .FirstOrDefaultAsync() ?? throw Util.Exception(HttpStatusCode.Forbidden, "Tài khoản không tồn tại.");
                 
-                if (accountModel.Email is null || (accountModel.Email is not null && accountModel.IsEmailVerified == false)) {
-                    Task<int> rowAffect = mysqlContext.Database.ExecuteSqlRawAsync(
-                        MysqlCommand.UPDATE_EMAIL_BY_ID, 
-                        newEmail, 
-                        UserId);
-                    if(!(await rowAffect > 0)) throw Util.Exception(HttpStatusCode.Forbidden, "Lỗi không xác định");
+                if (string.IsNullOrWhiteSpace(accountModel.Email) 
+                    || (!string.IsNullOrWhiteSpace(accountModel.Email) 
+                    && accountModel.IsEmailVerified == false)) {
 
-                    PurgeRedis(accountModel.Username);
-                    responeMessage = "Thay đổi Email Thành công";
+                        Task<int> rowAffect = mysqlContext.Database.ExecuteSqlRawAsync(
+                            MysqlCommand.UPDATE_EMAIL_BY_ID, 
+                            newEmail, 
+                            UserId);
+                        if(!(await rowAffect > 0)) throw Util.Exception(HttpStatusCode.Forbidden, "Lỗi không xác định");
+
+                        PurgeRedis(accountModel.Username);
+                        responeMessage = await SendVerifyEmail(ctx) 
+                            ? "Vui lòng vào Email xác thực Email mới" 
+                            : "Đã thay đổi Email nhưng chưa xác thực.";
                 }
 
-                if (accountModel.Email is not null && accountModel.IsEmailVerified == true) {
+                if(!string.IsNullOrWhiteSpace(accountModel.Email) 
+                    && accountModel.IsEmailVerified == true) {
+                    if(accountModel.Email !=  oldEmail) throw Util.Exception(HttpStatusCode.Forbidden, "Email hiện tại không đúng.");
                     bool result = await SendMailForChangeEmail(
                         UserId, 
                         accountModel.Username ?? string.Empty, 
