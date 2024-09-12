@@ -12,7 +12,6 @@ using ACAPI.Service;
 using DotNetEnv;
 using StackExchange.Redis;
 using System.Text.Json;
-
 namespace ACAPI.GraphQL.Mutation
 {
     public class AccountMutation : ObjectTypeExtension
@@ -26,14 +25,32 @@ namespace ACAPI.GraphQL.Mutation
                 .Use<AuthorizedMiddleware>()
             .ResolveWith<Resolver>(res => res.UpdateInfo(default!));
 
-            descriptor.Field("updateSecure")
-                .Argument("objectInput", arg => arg.Type<NonNullType<UpdateSecureInputType>>())
-                .Use<AuthorizedMiddleware>()
-                .ResolveWith<Resolver>(res => res.UpdateSecure(default!));
+            //descriptor.Field("updateSecure")
+            //    .Argument("objectInput", arg => arg.Type<NonNullType<UpdateSecureInputType>>())
+            //    .Use<AuthorizedMiddleware>()
+            //    .ResolveWith<Resolver>(res => res.UpdateSecure(default!));
 
             descriptor.Field("sendVerifyEmail")
                 .Use<AuthorizedMiddleware>()
                 .ResolveWith<Resolver>(res => res.SendVerifyEmail(default!));
+
+            descriptor.Field("changePassword")
+                .Argument("oldPassword", arg => arg.Type<NonNullType<StringType>>())
+                .Argument("newPassword", arg => arg.Type<NonNullType<StringType>>())
+                .Use<AuthorizedMiddleware>()
+                .ResolveWith<Resolver>(res => res.ChangePassword(default!));
+
+            descriptor.Field("changePhone")
+                .Argument("oldPhone", arg => arg.Type<StringType>())
+                .Argument("newPhone", arg => arg.Type<NonNullType<StringType>>())
+                .Use<AuthorizedMiddleware>()
+                .ResolveWith<Resolver>(res => res.ChangePhone(default!));
+
+            descriptor.Field("changeEmail")
+                .Argument("oldEmail", arg => arg.Type<StringType>())
+                .Argument("newEmail", arg => arg.Type<NonNullType<StringType>>())
+                .Use<AuthorizedMiddleware>()
+                .ResolveWith<Resolver>(res => res.ChangeEmail(default!));
         }
 
         private class Resolver(
@@ -46,6 +63,107 @@ namespace ACAPI.GraphQL.Mutation
             private readonly ViewRenderService _viewRenderService = viewRenderService;
 
             private readonly string REDIS_VERIFY = "verify_";
+
+            public async Task<string> ChangePassword(IResolverContext ctx) { 
+                string oldPassword = ctx.ArgumentValue<string>("oldPassword");
+                string newPassword = ctx.ArgumentValue<string>("newPassword");
+
+                long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
+                MysqlContext mysqlContext = _contextFactory.CreateDbContext();
+
+                AccountModel? accountModel = await mysqlContext.Account
+                    .Where(account => account.Id == UserId)
+                    .Select(account => new AccountModel
+                    {
+                        Username = account.Username,
+                        Password = account.Password,
+                    })
+                    .FirstOrDefaultAsync() ?? throw Util.Exception(HttpStatusCode.Forbidden, "Tài khoản không tồn tại.");
+                
+                if(!Password.Verify(oldPassword, accountModel.Password)) {
+                    throw Util.Exception(HttpStatusCode.Forbidden, "Mật khẩu hiện tại không đúng.");
+                }
+
+                Task<int> rowAffect = mysqlContext.Database.ExecuteSqlRawAsync(
+                    MysqlCommand.UPDATE_PASSWORD_BY_ID, 
+                    Password.Hash(newPassword), 
+                    UserId);
+                if(!(await rowAffect > 0)) throw Util.Exception(HttpStatusCode.Forbidden, "Lỗi không xác định");
+
+                PurgeRedis(accountModel.Username);
+                return "Thay đổi mật khẩu thành công";
+            } 
+            public async Task<string> ChangePhone(IResolverContext ctx) { 
+                string oldPhone = ctx.ArgumentValue<string>("oldPhone");
+                string newPhone = ctx.ArgumentValue<string>("newPhone");
+
+                long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
+
+                MysqlContext mysqlContext = _contextFactory.CreateDbContext();
+
+                AccountModel? accountModel = await mysqlContext.Account
+                    .Where(account => account.Id == UserId)
+                    .Select(account => new AccountModel
+                    {
+                        Username = account.Username,
+                        Phone = account.Phone,
+                    })
+                    .FirstOrDefaultAsync() ?? throw Util.Exception(HttpStatusCode.Forbidden, "Tài khoản không tồn tại.");
+
+                if(accountModel.Phone is null || (accountModel.Phone is not null && accountModel.Phone == oldPhone)) {
+                    Task<int> rowAffect = mysqlContext.Database.ExecuteSqlRawAsync(
+                        MysqlCommand.UPDATE_PHONE_BY_ID, 
+                        newPhone, 
+                        UserId);
+                    if(!(await rowAffect > 0)) throw Util.Exception(HttpStatusCode.Forbidden, "Lỗi không xác định");
+                }
+
+                PurgeRedis(accountModel.Username);
+                return "Thay đổi số điện thoại thành công";
+            }
+
+            public async Task<string> ChangeEmail(IResolverContext ctx) { 
+                string responeMessage = "";
+
+                string oldEmail = ctx.ArgumentValue<string>("oldEmail");
+                string newEmail = ctx.ArgumentValue<string>("newEmail");
+
+                long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
+
+                MysqlContext mysqlContext = _contextFactory.CreateDbContext();
+
+                AccountModel? accountModel = await mysqlContext.Account
+                    .Where(account => account.Id == UserId)
+                    .Select(account => new AccountModel
+                    {
+                        Email = account.Email,
+                        Username = account.Username,
+                        IsEmailVerified = account.IsEmailVerified,
+                    })
+                    .FirstOrDefaultAsync() ?? throw Util.Exception(HttpStatusCode.Forbidden, "Tài khoản không tồn tại.");
+                
+                if (accountModel.Email is null || (accountModel.Email is not null && accountModel.IsEmailVerified == false)) {
+                    Task<int> rowAffect = mysqlContext.Database.ExecuteSqlRawAsync(
+                        MysqlCommand.UPDATE_EMAIL_BY_ID, 
+                        newEmail, 
+                        UserId);
+                    if(!(await rowAffect > 0)) throw Util.Exception(HttpStatusCode.Forbidden, "Lỗi không xác định");
+
+                    PurgeRedis(accountModel.Username);
+                    responeMessage = "Thay đổi Email Thành công";
+                }
+
+                if (accountModel.Email is not null && accountModel.IsEmailVerified == true) {
+                    bool result = await SendMailForChangeEmail(
+                        UserId, 
+                        accountModel.Username ?? string.Empty, 
+                        accountModel.Email, 
+                        newEmail);
+                    responeMessage = "Kiểm tra hòm thư Email để xác nhận việc thay đổi Email";
+                }
+
+                return responeMessage;
+            }
             public async Task<bool> SendVerifyEmail(IResolverContext ctx) {
                 long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
                 string redisKey = $"{REDIS_VERIFY}{UserId}";
@@ -74,7 +192,8 @@ namespace ACAPI.GraphQL.Mutation
                 
                 var payload = new {
                     Id = UserId,
-                    Email= accountModel.Email ?? string.Empty
+                    Email= accountModel.Email ?? string.Empty,
+                    Operator = "VerifyEmail"
                 };
                
                 string jwtToken = JWT.GenerateES384(
@@ -98,10 +217,12 @@ namespace ACAPI.GraphQL.Mutation
                     new {
                         UrlStatic = Env.GetString("URL_STATIC"),
                         Username = accountModel.Username ?? string.Empty,
+                        Text = "xác thực Email",
+                        ButtonHTML = "Xác thực Email ngay",
                         Expire = 30,
                         VerifyLink = verifyLink
                     });
-                return Mail.Send(accountModel.Email ?? string.Empty, "Xác thực Email từ HBPlay", emailBody);
+                return Mail.Send(accountModel.Email ?? string.Empty, "Xác thực Email tại HBPlay", emailBody);
             }
 
             public bool UpdateInfo(IResolverContext ctx)
@@ -129,73 +250,6 @@ namespace ACAPI.GraphQL.Mutation
                 return mysqlContext.SaveChanges() > 0;
             }
 
-            public async Task<bool> UpdateSecure(IResolverContext ctx)
-            {
-                long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
-
-                UpdateSecureInput updateInput = ctx.ArgumentValue<UpdateSecureInput>("objectInput");
-
-                MysqlContext mysqlContext = _contextFactory.CreateDbContext();
-                AccountModel? accountModel = await mysqlContext.Account
-                    .Where(account => account.Id == UserId)
-                    .Select(account => new AccountModel
-                    {
-                        Username = account.Username,
-                        Password = updateInput.OldPassword != null ? account.Password : null,
-                        Phone = updateInput.OldPhone != null ? account.Phone : null,
-                        Email = updateInput.OldEmail != null ? account.Email : null
-                    })
-                    .FirstOrDefaultAsync() ?? throw Util.Exception(HttpStatusCode.NotFound);
-
-                AccountModel accountUpdate = new()
-                {
-                    Id = UserId
-                };
-
-                if (updateInput.OldPassword is not null)
-                {
-                    accountUpdate.Password = HandlePassword(
-                        updateInput.OldPassword,
-                        accountModel.Password,
-                        updateInput.NewPassword
-                    );
-                }
-
-                if ((accountModel.Email is null && updateInput.NewEmail is not null)
-                    || (accountModel.Email is not null && accountModel.Email == updateInput.OldEmail))
-                {
-                    accountUpdate.Email = updateInput.NewEmail;
-                }
-
-                if ((accountModel.Phone is null && updateInput.NewPhone is not null)
-                    || (accountModel.Phone is not null && accountModel.Phone == updateInput.OldPhone))
-                {
-                    accountUpdate.Phone = updateInput.NewPhone;
-                }
-
-                mysqlContext.Account.Attach(accountUpdate);
-
-                foreach (PropertyEntry property in mysqlContext.Entry(accountUpdate).Properties)
-                {
-                    property.IsModified = property.CurrentValue is not null
-                        && property.Metadata.Name != "Id";
-                }
-
-                int rowAffect = mysqlContext.SaveChanges();
-
-                if (rowAffect > 0) PurgeRedis(accountModel.Username);
-
-                return rowAffect > 0;
-            }
-
-            private static string HandlePassword(string? oldPassword, string? hashPassword, string? newPassword)
-            {
-                if (newPassword is null) throw Util.Exception(HttpStatusCode.Unauthorized);
-                if (!Password.Verify(oldPassword, hashPassword)) throw Util.Exception(HttpStatusCode.Forbidden);
-
-                return Password.Hash(newPassword);
-            }
-
             private void PurgeRedis(string? username)
             {
                 if (username is null) return;
@@ -204,6 +258,51 @@ namespace ACAPI.GraphQL.Mutation
                 {
                     redisContext.KeyDelete(username);
                 });
+            }
+
+            private async Task<bool> SendMailForChangeEmail(long UserId, string Username ,string oldEmail, string newEmail) {
+
+                string redisKey = $"{REDIS_VERIFY}{UserId}";
+                TimeSpan? ttl = Redis.GetValue(_redisPool, redisCTX => redisCTX.KeyTimeToLive(redisKey));
+
+                if(ttl is not null) {
+                    throw Util.Exception(HttpStatusCode.Forbidden, $"Thực hiện lại thao tác sau {ttl.Value.Minutes} phút");
+                }
+
+                var payload = new {
+                    Id = UserId,
+                    Email= oldEmail,
+                    NewEmail = newEmail,
+                    Operator = "RequestChangeEmail"
+                };
+                
+                string jwtToken = JWT.GenerateES384(
+                    JsonSerializer.Serialize(payload),
+                    JWT.ISSUER,
+                    Env.GetString("HOST"), 
+                    DateTime.UtcNow.AddMinutes(30));
+
+                Redis.Handle(_redisPool, redisCTX =>
+                {
+                    redisCTX.HashSet(redisKey, [
+                        new HashEntry("Token", jwtToken),
+                        ]);
+                    redisCTX.KeyExpire(redisKey, TimeSpan.FromMinutes(30));
+                });
+
+                string verifyLink = $"https://localhost:5000/api/auth/verify-email?token={jwtToken}";
+
+                string emailBody = await _viewRenderService.RenderToStringAsync(
+                    "~/View/VerifyEmailTempalte.cshtml",
+                    new {
+                        UrlStatic = Env.GetString("URL_STATIC"),
+                        Username = Username ?? string.Empty,
+                        Text = "thay đổi Email",
+                        ButtonHTML = "Thay đổi Email ngay",
+                        Expire = 30,
+                        VerifyLink = verifyLink
+                    });
+                return Mail.Send(oldEmail ?? string.Empty, "Yêu cầu thay đổi Email tại HBPlay", emailBody);
             }
         }
     }
