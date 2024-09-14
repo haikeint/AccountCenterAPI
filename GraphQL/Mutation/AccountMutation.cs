@@ -40,11 +40,22 @@ namespace ACAPI.GraphQL.Mutation
                 .Use<AuthorizedMiddleware>()
                 .ResolveWith<Resolver>(res => res.ChangePassword(default!));
 
-            descriptor.Field("changePhone")
-                .Argument("oldPhone", arg => arg.Type<StringType>())
+            descriptor.Field("sendOtpToPhone")
                 .Argument("newPhone", arg => arg.Type<NonNullType<StringType>>())
                 .Use<AuthorizedMiddleware>()
-                .ResolveWith<Resolver>(res => res.ChangePhone(default!));
+                .ResolveWith<Resolver>(res => res.SendOTP2Phone(default!));
+
+            descriptor.Field("verifyOtpToPhone")
+                .Argument("newPhone", arg => arg.Type<NonNullType<StringType>>())
+                .Argument("otp", arg => arg.Type<NonNullType<StringType>>())
+                .Use<AuthorizedMiddleware>()
+                .ResolveWith<Resolver>(res => res.VerifyOTP2Phone(default!));
+
+            //descriptor.Field("changePhone")
+            //    //.Argument("oldPhone", arg => arg.Type<StringType>())
+            //    .Argument("newPhone", arg => arg.Type<NonNullType<StringType>>())
+            //    .Use<AuthorizedMiddleware>()
+            //    .ResolveWith<Resolver>(res => res.SendOTP2Phone(default!));
 
             descriptor.Field("changeEmail")
                 .Argument("oldEmail", arg => arg.Type<StringType>())
@@ -63,6 +74,7 @@ namespace ACAPI.GraphQL.Mutation
             private readonly ViewRenderService _viewRenderService = viewRenderService;
 
             private readonly string REDIS_VERIFY = "verify_";
+            private readonly string REDIS_VERIFY_PHONE = "verifyPhone_";
 
             public async Task<string> ChangePassword(IResolverContext ctx) { 
                 string oldPassword = ctx.ArgumentValue<string>("oldPassword");
@@ -93,12 +105,64 @@ namespace ACAPI.GraphQL.Mutation
                 PurgeRedis(accountModel.Username);
                 return "Thay đổi mật khẩu thành công";
             } 
-            public async Task<string> ChangePhone(IResolverContext ctx) { 
-                string oldPhone = ctx.ArgumentValue<string>("oldPhone");
+            public string SendOTP2Phone(IResolverContext ctx) { 
                 string newPhone = ctx.ArgumentValue<string>("newPhone");
-                if(string.IsNullOrWhiteSpace(newPhone)) throw Util.Exception(HttpStatusCode.Forbidden, "SDT không hợp lệ");
+                if(newPhone.Length != 10 || !ValidatePhoneNumber(newPhone)) {
+                    throw Util.Exception(HttpStatusCode.Forbidden, "Số điện thoại di động Việt Nam không hợp lệ");
+                } 
                 
                 long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
+
+                string code = Util.RandomNumber(6);
+
+                if(!SMS.Send(newPhone, $"Mã xác thực của bạn là: {Util.RandomNumber(6)}")) {
+                    throw Util.Exception(HttpStatusCode.InternalServerError, "Lỗi gửi mã OTP vào điện thoại");
+                }
+
+                string redisKey = $"{REDIS_VERIFY_PHONE}_{UserId}_{newPhone}";
+                
+                TimeSpan? ttl = Redis.GetValue(_redisPool, redisCTX =>
+                {
+                    TimeSpan? ttl = redisCTX.KeyTimeToLive(redisKey);
+                    if(ttl is not null) return ttl;
+
+                    redisCTX.HashSet(redisKey, [
+                            new HashEntry("OTP", code)
+                        ]);
+                    ttl = TimeSpan.FromMinutes(2);
+                    redisCTX.KeyExpire(redisKey, ttl);
+                    return null;
+                });
+         
+                if(ttl is not null) throw Util.Exception(HttpStatusCode.Forbidden, $"Gửi lại mã OTP sau {ttl.Value.Seconds}s"); 
+                
+                return "Đã gửi mã OTP vào số điện thoại.";
+            }
+
+            public async Task<string> VerifyOTP2Phone(IResolverContext ctx) { 
+                string newPhone = ctx.ArgumentValue<string>("newPhone");
+                string otp = ctx.ArgumentValue<string>("otp");
+
+                if(newPhone.Length != 10 || !ValidatePhoneNumber(newPhone)) {
+                    throw Util.Exception(HttpStatusCode.Forbidden, "Số điện thoại di động Việt Nam không hợp lệ");
+                } 
+                
+                long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
+                string redisKey = $"{REDIS_VERIFY_PHONE}_{UserId}_{newPhone}";
+
+                RedisValue[] redisResult = Redis.GetValue(_redisPool, redisCTX =>
+                {
+                    return redisCTX.HashGet(redisKey, ["OTP"]);
+                });
+
+                if (!redisResult[0].HasValue) throw Util.Exception(HttpStatusCode.NotFound, "Mã OTP không tồn tại.");
+
+                if(redisResult[0] != otp) throw Util.Exception(HttpStatusCode.Forbidden, "Mã OTP không đúng.");
+
+                Redis.Handle(_redisPool, redisCTX =>
+                {
+                    redisCTX.KeyDelete(redisKey);
+                });
 
                 MysqlContext mysqlContext = _contextFactory.CreateDbContext();
 
@@ -111,13 +175,13 @@ namespace ACAPI.GraphQL.Mutation
                     .FirstOrDefaultAsync() ?? throw Util.Exception(HttpStatusCode.Forbidden, "Tài khoản không tồn tại.");
 
                 Task<int> rowAffect = mysqlContext.Database.ExecuteSqlRawAsync(
-                    MysqlCommand.UPDATE_PHONE_BY_ID, 
-                    newPhone, 
+                    MysqlCommand.UPDATE_PHONE_BY_ID,
+                    newPhone,
                     UserId);
-                if(!(await rowAffect > 0)) throw Util.Exception(HttpStatusCode.Forbidden, "Lỗi không xác định");
+                if (!(await rowAffect > 0)) throw Util.Exception(HttpStatusCode.Forbidden, "Lỗi không xác định");
 
                 PurgeRedis(accountModel.Username);
-                return "Thay đổi số điện thoại thành công";
+                return "Đã thay đổi số điện thoại thành công.";
             }
 
             public async Task<string> ChangeEmail(IResolverContext ctx) { 
@@ -311,6 +375,21 @@ namespace ACAPI.GraphQL.Mutation
                         VerifyLink = verifyLink
                     });
                 return Mail.Send(oldEmail ?? string.Empty, "Yêu cầu thay đổi Email tại HBPlay", emailBody);
+            }
+
+            private static readonly List<string> PHONE_NUMBER_VALID = [];
+            private bool ValidatePhoneNumber(string phoneNumber) {
+                if(PHONE_NUMBER_VALID.Count.Equals(0)) {
+                    MysqlContext mysqlContext = _contextFactory.CreateDbContext();
+                    IEnumerable<PhonePrefixModel> phonePrefixModel = mysqlContext.PhonePrefix
+                        .Select(prefix => new PhonePrefixModel {
+                            Prefix = prefix.Prefix
+                        });
+                    foreach (PhonePrefixModel item in phonePrefixModel.ToList()) {
+                        if (item.Prefix is not null) PHONE_NUMBER_VALID.Add(item.Prefix);
+                    }
+                }
+                return PHONE_NUMBER_VALID.Contains(phoneNumber[..3]);
             }
         }
     }
