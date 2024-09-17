@@ -12,6 +12,7 @@ using ACAPI.Service;
 using DotNetEnv;
 using StackExchange.Redis;
 using System.Text.Json;
+
 namespace ACAPI.GraphQL.Mutation
 {
     public class AccountMutation : ObjectTypeExtension
@@ -40,22 +41,27 @@ namespace ACAPI.GraphQL.Mutation
                 .Use<AuthorizedMiddleware>()
                 .ResolveWith<Resolver>(res => res.ChangePassword(default!));
 
-            descriptor.Field("sendOtpToPhone")
+            descriptor.Field("addPhoneNumber")
                 .Argument("newPhone", arg => arg.Type<NonNullType<StringType>>())
                 .Use<AuthorizedMiddleware>()
-                .ResolveWith<Resolver>(res => res.SendOTP2Phone(default!));
+                .ResolveWith<Resolver>(res => res.AddPhoneNumber(default!));
 
-            descriptor.Field("verifyOtpToPhone")
+            descriptor.Field("verifyAddPhoneNumber")
                 .Argument("newPhone", arg => arg.Type<NonNullType<StringType>>())
                 .Argument("otp", arg => arg.Type<NonNullType<StringType>>())
                 .Use<AuthorizedMiddleware>()
-                .ResolveWith<Resolver>(res => res.VerifyOTP2Phone(default!));
+                .ResolveWith<Resolver>(res => res.VerifyAddPhoneNumber(default!));
 
-            //descriptor.Field("changePhone")
-            //    //.Argument("oldPhone", arg => arg.Type<StringType>())
-            //    .Argument("newPhone", arg => arg.Type<NonNullType<StringType>>())
-            //    .Use<AuthorizedMiddleware>()
-            //    .ResolveWith<Resolver>(res => res.SendOTP2Phone(default!));
+            descriptor.Field("deletePhoneNumber")
+                .Argument("oldPhone", arg => arg.Type<NonNullType<StringType>>())
+                .Use<AuthorizedMiddleware>()
+                .ResolveWith<Resolver>(res => res.DeletePhoneNumber(default!));
+
+            descriptor.Field("verifyDeletePhoneNumber")
+                .Argument("oldPhone", arg => arg.Type<NonNullType<StringType>>())
+                .Argument("otp", arg => arg.Type<NonNullType<StringType>>())
+                .Use<AuthorizedMiddleware>()
+                .ResolveWith<Resolver>(res => res.VerifyDeletePhoneNumber(default!));
 
             descriptor.Field("changeEmail")
                 .Argument("oldEmail", arg => arg.Type<StringType>())
@@ -105,41 +111,41 @@ namespace ACAPI.GraphQL.Mutation
                 PurgeRedis(accountModel.Username);
                 return "Thay đổi mật khẩu thành công";
             } 
-            public string SendOTP2Phone(IResolverContext ctx) { 
+            public string AddPhoneNumber(IResolverContext ctx) { 
                 string newPhone = ctx.ArgumentValue<string>("newPhone");
                 if(newPhone.Length != 10 || !ValidatePhoneNumber(newPhone)) {
                     throw Util.Exception(HttpStatusCode.Forbidden, "Số điện thoại di động Việt Nam không hợp lệ");
                 } 
                 
                 long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
-
                 string code = Util.RandomNumber(6);
-
-                if(!SMS.Send(newPhone, $"Mã xác thực của bạn là: {Util.RandomNumber(6)}")) {
-                    throw Util.Exception(HttpStatusCode.InternalServerError, "Lỗi gửi mã OTP vào điện thoại");
-                }
-
                 string redisKey = $"{REDIS_VERIFY_PHONE}_{UserId}_{newPhone}";
                 
                 TimeSpan? ttl = Redis.GetValue(_redisPool, redisCTX =>
                 {
-                    TimeSpan? ttl = redisCTX.KeyTimeToLive(redisKey);
-                    if(ttl is not null) return ttl;
+                    TimeSpan? ttl = null;
+                    RedisValue[] expire = redisCTX.HashGet(redisKey, ["EXPIRE"]);
+                    if (expire[0].HasValue) ttl = GetOTPExpire((long)expire[0]);
 
-                    redisCTX.HashSet(redisKey, [
-                            new HashEntry("OTP", code)
+                    if(ttl is null) {
+                        redisCTX.HashSet(redisKey, [
+                            new HashEntry("OTP", code),
+                            new HashEntry("EXPIRE", DateTimeOffset.UtcNow.AddMinutes(2).ToUnixTimeSeconds())
                         ]);
-                    ttl = TimeSpan.FromMinutes(2);
-                    redisCTX.KeyExpire(redisKey, ttl);
-                    return null;
+                        redisCTX.KeyExpire(redisKey, TimeSpan.FromMinutes(10));
+                    }
+                    return ttl;
                 });
          
-                if(ttl is not null) throw Util.Exception(HttpStatusCode.Forbidden, $"Gửi lại mã OTP sau {ttl.Value.Seconds}s"); 
-                
+                if(ttl is not null) throw Util.Exception(HttpStatusCode.Forbidden, $"Gửi lại mã OTP sau {ttl.Value.TotalSeconds}s"); 
+                if(!SMS.Send(newPhone, $"Mã xác thực của bạn là: {code}")) {
+                    throw Util.Exception(HttpStatusCode.InternalServerError, "Lỗi gửi mã OTP vào điện thoại");
+                }
                 return "Đã gửi mã OTP vào số điện thoại.";
             }
 
-            public async Task<string> VerifyOTP2Phone(IResolverContext ctx) { 
+            public async Task<string> VerifyAddPhoneNumber(IResolverContext ctx) { 
+       
                 string newPhone = ctx.ArgumentValue<string>("newPhone");
                 string otp = ctx.ArgumentValue<string>("otp");
 
@@ -149,6 +155,102 @@ namespace ACAPI.GraphQL.Mutation
                 
                 long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
                 string redisKey = $"{REDIS_VERIFY_PHONE}_{UserId}_{newPhone}";
+
+                RedisValue[] redisResult = Redis.GetValue(_redisPool, redisCTX => {
+                    return redisCTX.HashGet(redisKey, ["OTP", "EXPIRE"]);
+                });
+
+                if (!redisResult[0].HasValue && !redisResult[1].HasValue) { 
+                    throw Util.Exception(HttpStatusCode.NotFound, "Mã OTP không tồn tại.");
+                }
+                if(redisResult[0] != otp) throw Util.Exception(HttpStatusCode.Forbidden, "Mã OTP không đúng.");
+
+                if(DateTimeOffset.UtcNow.ToUnixTimeSeconds() >= (long)redisResult[1]) {
+                    throw Util.Exception(HttpStatusCode.Forbidden, "Mã OTP hết hạn");
+                }
+
+                Redis.Handle(_redisPool, redisCTX => redisCTX.KeyDelete(redisKey));
+
+                MysqlContext mysqlContext = _contextFactory.CreateDbContext();
+
+                AccountModel? accountModel = await mysqlContext.Account
+                    .Where(account => account.Id == UserId)
+                    .Select(account => new AccountModel {
+                        Username = account.Username,
+                        Phone = account.Phone,
+                    })
+                    .FirstOrDefaultAsync() ?? throw Util.Exception(HttpStatusCode.Forbidden, "Tài khoản không tồn tại.");
+
+                Task<int> rowAffect = mysqlContext.Database.ExecuteSqlRawAsync(
+                    MysqlCommand.UPDATE_PHONE_BY_ID,
+                    newPhone,
+                    UserId);
+                if (!(await rowAffect > 0)) throw Util.Exception(HttpStatusCode.Forbidden, "Lỗi không xác định");
+
+                PurgeRedis(accountModel.Username);
+                return "Đã thay đổi số điện thoại thành công.";
+            }
+            public async Task<string> DeletePhoneNumber(IResolverContext ctx) { 
+                string oldPhone = ctx.ArgumentValue<string>("oldPhone");
+
+                if(oldPhone.Length != 10 || !ValidatePhoneNumber(oldPhone)) {
+                    throw Util.Exception(HttpStatusCode.Forbidden, "Số điện thoại di động Việt Nam không hợp lệ");
+                } 
+
+                long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
+                string code = Util.RandomNumber(6);
+                string redisKey = $"{REDIS_VERIFY_PHONE}_{UserId}_{oldPhone}";
+           
+                TimeSpan? ttl = Redis.GetValue(_redisPool, redisCTX =>
+                {
+                    TimeSpan? ttl = null;
+                    RedisValue[] expire = redisCTX.HashGet(redisKey, ["EXPIRE"]);
+                    if (expire[0].HasValue) ttl = GetOTPExpire((long)expire[0]);
+                    return ttl;
+                });
+                
+                if(ttl is not null) throw Util.Exception(HttpStatusCode.Forbidden, $"Gửi lại mã OTP sau {ttl.Value.TotalSeconds}s"); 
+                
+                MysqlContext mysqlContext = _contextFactory.CreateDbContext();
+                AccountModel? accountModel = await mysqlContext.Account
+                    .Where(account => account.Id == UserId)
+                    .Select(account => new AccountModel {
+                        Username = account.Username,
+                        Phone = account.Phone,
+                    })
+                    .FirstOrDefaultAsync() ?? throw Util.Exception(HttpStatusCode.Forbidden, "Tài khoản không tồn tại.");
+                if(accountModel.Phone is not null && oldPhone != accountModel.Phone) {
+                    throw Util.Exception(HttpStatusCode.Forbidden, "Số điện thoại hiện tại không đúng");
+                }
+
+                if(!SMS.Send(oldPhone, $"Mã xác thực của bạn là: {code}")) {
+                    throw Util.Exception(HttpStatusCode.InternalServerError, "Lỗi gửi mã OTP vào điện thoại");
+                }
+
+                bool result = Redis.GetValue(_redisPool, redisCTX => {
+                    redisCTX.HashSet(redisKey, [
+                        new HashEntry("OTP", code),
+                        new HashEntry("EXPIRE", DateTimeOffset.UtcNow.AddMinutes(2).ToUnixTimeSeconds())
+                    ]);
+                    return redisCTX.KeyExpire(redisKey, TimeSpan.FromMinutes(10));
+                });
+               
+                if(!result) {
+                    throw Util.Exception(HttpStatusCode.InternalServerError, "Lỗi gửi mã OTP vào điện thoại");
+                }
+                return "Đã gửi mã OTP vào số điện thoại hiện tại";
+            }
+            
+            public async Task<string> VerifyDeletePhoneNumber(IResolverContext ctx) { 
+                string oldPhone = ctx.ArgumentValue<string>("oldPhone");
+                string otp = ctx.ArgumentValue<string>("otp");
+
+                if(oldPhone.Length != 10 || !ValidatePhoneNumber(oldPhone)) {
+                    throw Util.Exception(HttpStatusCode.Forbidden, "Số điện thoại di động Việt Nam không hợp lệ");
+                } 
+                
+                long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
+                string redisKey = $"{REDIS_VERIFY_PHONE}_{UserId}_{oldPhone}";
 
                 RedisValue[] redisResult = Redis.GetValue(_redisPool, redisCTX =>
                 {
@@ -175,15 +277,13 @@ namespace ACAPI.GraphQL.Mutation
                     .FirstOrDefaultAsync() ?? throw Util.Exception(HttpStatusCode.Forbidden, "Tài khoản không tồn tại.");
 
                 Task<int> rowAffect = mysqlContext.Database.ExecuteSqlRawAsync(
-                    MysqlCommand.UPDATE_PHONE_BY_ID,
-                    newPhone,
+                    MysqlCommand.UPDATE_PHONE_TO_NULL_BY_ID,
                     UserId);
                 if (!(await rowAffect > 0)) throw Util.Exception(HttpStatusCode.Forbidden, "Lỗi không xác định");
 
                 PurgeRedis(accountModel.Username);
-                return "Đã thay đổi số điện thoại thành công.";
+                return "Đã xóa số điện thoại";
             }
-
             public async Task<string> ChangeEmail(IResolverContext ctx) { 
                 string responeMessage = "";
 
@@ -390,6 +490,18 @@ namespace ACAPI.GraphQL.Mutation
                     }
                 }
                 return PHONE_NUMBER_VALID.Contains(phoneNumber[..3]);
+            }
+
+            private static TimeSpan? GetOTPExpire(long expire) {
+                TimeSpan? ttl = null;
+                long unixTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                if (expire >= unixTimestamp) {
+
+                    DateTimeOffset currentTime = DateTimeOffset.FromUnixTimeSeconds(unixTimestamp);
+                    DateTimeOffset futureTime = DateTimeOffset.FromUnixTimeSeconds(expire);
+                    ttl  = futureTime - currentTime;
+                }
+                return ttl;
             }
         }
     }
