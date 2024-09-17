@@ -16,11 +16,11 @@ namespace ACAPI.Controller {
     [Route("api/auth")]
     public class VerifyController(
             IDbContextFactory<MysqlContext> contextFactory,
-            RedisConnectionPool redisConnectionPool,
+            IConnectionMultiplexer redis,
             ViewRenderService viewRenderService) : Controller
     {
         private readonly IDbContextFactory<MysqlContext> _contextFactory = contextFactory;
-        private readonly RedisConnectionPool _redisPool = redisConnectionPool;
+        private readonly IConnectionMultiplexer _redis = redis;
         private readonly ViewRenderService _viewRenderService = viewRenderService;
 
         private readonly string REDIS_VERIFY = "verify_";
@@ -39,14 +39,11 @@ namespace ACAPI.Controller {
             string Operator = deserializedPayload?.Operator ?? string.Empty;
             
             string RedisKey = $"{REDIS_VERIFY}{UserId}";
-
-            RedisValue[] accountRedis = Redis.GetValue(_redisPool, redisCTX => {
-                RedisValue[] result = redisCTX.HashGet(RedisKey, ["Token"]);
-                if (result[0].HasValue && result[0] == token) {
-                    redisCTX.KeyDelete(RedisKey);
-                }
-                return result;
-            });
+            IDatabase redisDB = _redis.GetDatabase();
+            RedisValue[] accountRedis = redisDB.HashGet(RedisKey, ["Token"]);
+            if (accountRedis[0].HasValue && accountRedis[0] == token) {
+                    redisDB.KeyDelete(RedisKey);
+            }
 
             if (accountRedis[0].HasValue) {
                 MysqlContext mysqlContext = _contextFactory.CreateDbContext();
@@ -72,8 +69,9 @@ namespace ACAPI.Controller {
         private async Task<bool> SendVerifyEmail(string host, string email, string userId, string username)
         { 
                 string redisKey = $"{REDIS_VERIFY}{userId}";
+                IDatabase redisDB = _redis.GetDatabase();
 
-                TimeSpan? ttl = Redis.GetValue(_redisPool, redisCTX => redisCTX.KeyTimeToLive(redisKey));
+                TimeSpan? ttl = redisDB.KeyTimeToLive(redisKey);
 
                 if(ttl is not null) return false;
                 
@@ -89,13 +87,10 @@ namespace ACAPI.Controller {
                     host, 
                     DateTime.UtcNow.AddMinutes(30));
 
-                Redis.Handle(_redisPool, redisCTX =>
-                {
-                    redisCTX.HashSet(redisKey, [
+                redisDB.HashSet(redisKey, [
                         new HashEntry("Token", jwtToken),
-                        ]);
-                    redisCTX.KeyExpire(redisKey, TimeSpan.FromMinutes(30));
-                });
+                    ]);
+                redisDB.KeyExpire(redisKey, TimeSpan.FromMinutes(30));
 
                 string verifyLink = $"https://localhost:5000/api/auth/verify-email?token={jwtToken}";
 

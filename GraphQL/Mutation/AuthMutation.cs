@@ -47,11 +47,10 @@ namespace ACAPI.GraphQL.Mutation
                 .ResolveWith<Resolver>(res => res.Register(default!));
         }
 
-        private class Resolver(IDbContextFactory<MysqlContext> contextFactory, RedisConnectionPool redisConnectionPool)
+        private class Resolver(IDbContextFactory<MysqlContext> contextFactory, IConnectionMultiplexer redis)
         {
             private readonly IDbContextFactory<MysqlContext> _contextFactory = contextFactory;
-            private readonly RedisConnectionPool _redisPool = redisConnectionPool;
-
+            private readonly IConnectionMultiplexer _redis = redis;
             public async Task<bool> Login(IResolverContext ctx)
             {
                 string username = ctx.ArgumentValue<string>(Agrs.USERNAME);
@@ -66,18 +65,11 @@ namespace ACAPI.GraphQL.Mutation
                 if (!(await Recaptcha.Verify(rectoken, recver))) throw Util.Exception(HttpStatusCode.Forbidden, "Unvalid token");
                 try
                 {
-                    RedisValue[] accountRedis = Redis.GetValue(_redisPool, redisCTX =>
-                    {
-                        RedisValue[] result = redisCTX.HashGet(username, ["Id", "Password"]);
-                        if (result[0].HasValue && result[1].HasValue)
-                        {
-                            redisCTX.KeyExpire(username, TimeSpan.FromDays(1));
-                        }
-                        return result;
-                    });
-
+                    IDatabase redisDB = _redis.GetDatabase();
+                    RedisValue[] accountRedis = redisDB.HashGet(username, ["Id", "Password"]);
                     if (accountRedis[0].HasValue && accountRedis[1].HasValue)
                     {
+                        redisDB.KeyExpire(username, TimeSpan.FromDays(1));
                         accountModel = new AccountModel
                         {
                             Id = (long)accountRedis[0],
@@ -101,14 +93,11 @@ namespace ACAPI.GraphQL.Mutation
                     {
                         if (!(accountRedis[0].HasValue && accountRedis[1].HasValue))
                         {
-                            Redis.Handle(_redisPool, redisCTX =>
-                            {
-                                redisCTX.HashSet(username, [
-                                    new HashEntry("Id", accountModel.Id),
-                                    new HashEntry("Password", accountModel.Password)
-                                    ]);
-                                redisCTX.KeyExpire(username, TimeSpan.FromDays(1));
-                            });
+                            redisDB.HashSet(username, [
+                                new HashEntry("Id", accountModel.Id),
+                                new HashEntry("Password", accountModel.Password)
+                            ]);
+                            redisDB.KeyExpire(username, TimeSpan.FromDays(1));
                         }
 
                         if (Password.Verify(password, accountModel.Password))

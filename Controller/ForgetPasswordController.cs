@@ -9,17 +9,18 @@ using DotNetEnv;
 
 namespace ACAPI.Controller
 {
+    using Microsoft.AspNetCore.Components.Forms;
     using Microsoft.AspNetCore.Mvc;
     
     [ApiController]
     [Route("api/forgetpassword")]
     public class ForgetPasswordController(
             IDbContextFactory<MysqlContext> contextFactory,
-            RedisConnectionPool redisConnectionPool,
+            IConnectionMultiplexer redis,
             ViewRenderService viewRenderService) : Controller
     {
         private readonly IDbContextFactory<MysqlContext> _contextFactory = contextFactory;
-        private readonly RedisConnectionPool _redisPool = redisConnectionPool;
+        private readonly IConnectionMultiplexer _redis = redis;
         private readonly ViewRenderService _viewRenderService = viewRenderService;
 
         private readonly string FORGET_CODE = "ForgetCode_";
@@ -72,10 +73,8 @@ namespace ACAPI.Controller
             if (!(identity is not null && identity.IsAuthenticated)) return Ok(new { Error = "Token hết hạn" });
             if (!(identity.Name is not null)) return Ok(new { Error = "Định dạng token không hợp lệ" });
 
-            RedisValue[] redisResult = Redis.GetValue(_redisPool, redisCTX =>
-            {
-                return redisCTX.HashGet($"{FORGET_CODE}{identity.Name}", ["Code"]);
-            });
+            IDatabase redisDB = _redis.GetDatabase();
+            RedisValue[] redisResult = redisDB.HashGet($"{FORGET_CODE}{identity.Name}", ["Code"]);
 
             if (redisResult[0].HasValue) return Ok(new { Error = "Chỉ có thể gửi mã xác nhận mỗi 60s" });
 
@@ -116,14 +115,14 @@ namespace ACAPI.Controller
             {
                 return Ok(new { Error = "Lỗi không xác định" });
             }
-            Redis.Handle(_redisPool, redisCTX =>
-            {
-                string hashKey = $"{FORGET_CODE}{identity.Name}";
-                redisCTX.HashSet(hashKey, [
-                    new HashEntry("Code", Util.HASH256(code)),
-                    ]);
-                redisCTX.KeyExpire(hashKey, TimeSpan.FromMinutes(1));
-            });
+
+            
+            string hashKey = $"{FORGET_CODE}{identity.Name}";
+            redisDB.HashSet(hashKey, [
+                new HashEntry("Code", Util.HASH256(code)),
+                ]);
+            redisDB.KeyExpire(hashKey, TimeSpan.FromMinutes(1));
+          
             return Ok(new
             {
                 Token = token,
@@ -138,10 +137,8 @@ namespace ACAPI.Controller
             if (!(identity is not null && identity.IsAuthenticated)) return BadRequest(new { Error = "Token hết hạn" });
             if (!(identity.Name is not null)) return BadRequest(new { Error = "Định dạng token không hợp lệ." });
 
-            RedisValue[] redisResult = Redis.GetValue(_redisPool, redisCTX =>
-            {
-                return redisCTX.HashGet($"{FORGET_CODE}{identity.Name}", ["Code"]);
-            });
+            IDatabase redisDB = _redis.GetDatabase();
+            RedisValue[] redisResult = redisDB.HashGet($"{FORGET_CODE}{identity.Name}", ["Code"]);
 
             if (!redisResult[0].HasValue) return BadRequest(new { Error = "Mã OTP không tồn tại." });
 
@@ -149,11 +146,7 @@ namespace ACAPI.Controller
             {
                 return BadRequest(new { Error = "Mã OTP không đúng." });
             }
-
-            Redis.Handle(_redisPool, redisContext =>
-            {
-                redisContext.KeyDelete($"{FORGET_CODE}{identity.Name}");
-            });
+            redisDB.KeyDelete($"{FORGET_CODE}{identity.Name}");
 
             MysqlContext mysqlContext = _contextFactory.CreateDbContext();
             string sql = "UPDATE account Set password = {0} WHERE username = {1}";
@@ -162,10 +155,7 @@ namespace ACAPI.Controller
 
             if (await rowAffect > 0)
             {
-                Redis.Handle(_redisPool, redisContext =>
-                {
-                    redisContext.KeyDelete(identity.Name);
-                });
+                redisDB.KeyDelete(identity.Name);
                 return Ok(new
                 {
                     Result = "Hoàn tất"

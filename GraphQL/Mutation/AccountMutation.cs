@@ -72,11 +72,12 @@ namespace ACAPI.GraphQL.Mutation
 
         private class Resolver(
             IDbContextFactory<MysqlContext> contextFactory, 
-            RedisConnectionPool redisConnectionPool,
+            IConnectionMultiplexer redis,
             ViewRenderService viewRenderService)
         {
             private readonly IDbContextFactory<MysqlContext> _contextFactory = contextFactory;
-            private readonly RedisConnectionPool _redisPool = redisConnectionPool;
+            private readonly IConnectionMultiplexer _redis = redis;
+
             private readonly ViewRenderService _viewRenderService = viewRenderService;
 
             private readonly string REDIS_VERIFY = "verify_";
@@ -121,21 +122,18 @@ namespace ACAPI.GraphQL.Mutation
                 string code = Util.RandomNumber(6);
                 string redisKey = $"{REDIS_VERIFY_PHONE}_{UserId}_{newPhone}";
                 
-                TimeSpan? ttl = Redis.GetValue(_redisPool, redisCTX =>
-                {
-                    TimeSpan? ttl = null;
-                    RedisValue[] expire = redisCTX.HashGet(redisKey, ["EXPIRE"]);
-                    if (expire[0].HasValue) ttl = GetOTPExpire((long)expire[0]);
+                IDatabase redisDB = _redis.GetDatabase();
+                TimeSpan? ttl = null;
+                RedisValue[] expire = redisDB.HashGet(redisKey, ["EXPIRE"]);
+                if (expire[0].HasValue) ttl = GetOTPExpire((long)expire[0]);
 
-                    if(ttl is null) {
-                        redisCTX.HashSet(redisKey, [
-                            new HashEntry("OTP", code),
-                            new HashEntry("EXPIRE", DateTimeOffset.UtcNow.AddMinutes(2).ToUnixTimeSeconds())
-                        ]);
-                        redisCTX.KeyExpire(redisKey, TimeSpan.FromMinutes(10));
-                    }
-                    return ttl;
-                });
+                if(ttl is null) {
+                    redisDB.HashSet(redisKey, [
+                        new HashEntry("OTP", code),
+                        new HashEntry("EXPIRE", DateTimeOffset.UtcNow.AddMinutes(2).ToUnixTimeSeconds())
+                    ]);
+                    redisDB.KeyExpire(redisKey, TimeSpan.FromMinutes(10));
+                }
          
                 if(ttl is not null) throw Util.Exception(HttpStatusCode.Forbidden, $"Gửi lại mã OTP sau {ttl.Value.TotalSeconds}s"); 
                 if(!SMS.Send(newPhone, $"Mã xác thực của bạn là: {code}")) {
@@ -156,9 +154,8 @@ namespace ACAPI.GraphQL.Mutation
                 long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
                 string redisKey = $"{REDIS_VERIFY_PHONE}_{UserId}_{newPhone}";
 
-                RedisValue[] redisResult = Redis.GetValue(_redisPool, redisCTX => {
-                    return redisCTX.HashGet(redisKey, ["OTP", "EXPIRE"]);
-                });
+                IDatabase redisDB = _redis.GetDatabase();
+                RedisValue[] redisResult = redisDB.HashGet(redisKey, ["OTP", "EXPIRE"]);
 
                 if (!redisResult[0].HasValue && !redisResult[1].HasValue) { 
                     throw Util.Exception(HttpStatusCode.NotFound, "Mã OTP không tồn tại.");
@@ -168,8 +165,7 @@ namespace ACAPI.GraphQL.Mutation
                 if(DateTimeOffset.UtcNow.ToUnixTimeSeconds() >= (long)redisResult[1]) {
                     throw Util.Exception(HttpStatusCode.Forbidden, "Mã OTP hết hạn");
                 }
-
-                Redis.Handle(_redisPool, redisCTX => redisCTX.KeyDelete(redisKey));
+                redisDB.KeyDelete(redisKey);
 
                 MysqlContext mysqlContext = _contextFactory.CreateDbContext();
 
@@ -201,13 +197,19 @@ namespace ACAPI.GraphQL.Mutation
                 string code = Util.RandomNumber(6);
                 string redisKey = $"{REDIS_VERIFY_PHONE}_{UserId}_{oldPhone}";
            
-                TimeSpan? ttl = Redis.GetValue(_redisPool, redisCTX =>
-                {
-                    TimeSpan? ttl = null;
-                    RedisValue[] expire = redisCTX.HashGet(redisKey, ["EXPIRE"]);
-                    if (expire[0].HasValue) ttl = GetOTPExpire((long)expire[0]);
-                    return ttl;
-                });
+                IDatabase redisDB = _redis.GetDatabase();
+                TimeSpan? ttl = null;
+                RedisValue[] expire = redisDB.HashGet(redisKey, ["EXPIRE"]);
+                if (expire[0].HasValue) ttl = GetOTPExpire((long)expire[0]);
+                //return ttl;
+
+                //TimeSpan? ttl = Redis.GetValue(_redisPool, redisCTX =>
+                //{
+                //    TimeSpan? ttl = null;
+                //    RedisValue[] expire = redisCTX.HashGet(redisKey, ["EXPIRE"]);
+                //    if (expire[0].HasValue) ttl = GetOTPExpire((long)expire[0]);
+                //    return ttl;
+                //});
                 
                 if(ttl is not null) throw Util.Exception(HttpStatusCode.Forbidden, $"Gửi lại mã OTP sau {ttl.Value.TotalSeconds}s"); 
                 
@@ -226,14 +228,12 @@ namespace ACAPI.GraphQL.Mutation
                 if(!SMS.Send(oldPhone, $"Mã xác thực của bạn là: {code}")) {
                     throw Util.Exception(HttpStatusCode.InternalServerError, "Lỗi gửi mã OTP vào điện thoại");
                 }
-
-                bool result = Redis.GetValue(_redisPool, redisCTX => {
-                    redisCTX.HashSet(redisKey, [
-                        new HashEntry("OTP", code),
-                        new HashEntry("EXPIRE", DateTimeOffset.UtcNow.AddMinutes(2).ToUnixTimeSeconds())
-                    ]);
-                    return redisCTX.KeyExpire(redisKey, TimeSpan.FromMinutes(10));
-                });
+                
+                redisDB.HashSet(redisKey, [
+                    new HashEntry("OTP", code),
+                    new HashEntry("EXPIRE", DateTimeOffset.UtcNow.AddMinutes(2).ToUnixTimeSeconds())
+                ]);
+                bool result = redisDB.KeyExpire(redisKey, TimeSpan.FromMinutes(10));
                
                 if(!result) {
                     throw Util.Exception(HttpStatusCode.InternalServerError, "Lỗi gửi mã OTP vào điện thoại");
@@ -252,19 +252,14 @@ namespace ACAPI.GraphQL.Mutation
                 long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
                 string redisKey = $"{REDIS_VERIFY_PHONE}_{UserId}_{oldPhone}";
 
-                RedisValue[] redisResult = Redis.GetValue(_redisPool, redisCTX =>
-                {
-                    return redisCTX.HashGet(redisKey, ["OTP"]);
-                });
+                IDatabase redisDB = _redis.GetDatabase();
+                RedisValue[] redisResult = redisDB.HashGet(redisKey, ["OTP"]);
 
                 if (!redisResult[0].HasValue) throw Util.Exception(HttpStatusCode.NotFound, "Mã OTP không tồn tại.");
 
                 if(redisResult[0] != otp) throw Util.Exception(HttpStatusCode.Forbidden, "Mã OTP không đúng.");
 
-                Redis.Handle(_redisPool, redisCTX =>
-                {
-                    redisCTX.KeyDelete(redisKey);
-                });
+                redisDB.KeyDelete(redisKey);
 
                 MysqlContext mysqlContext = _contextFactory.CreateDbContext();
 
@@ -338,9 +333,11 @@ namespace ACAPI.GraphQL.Mutation
             }
             public async Task<bool> SendVerifyEmail(IResolverContext ctx) {
                 long UserId = long.Parse(Util.GetContextData(ctx, EnvirConst.UserId));
-                string redisKey = $"{REDIS_VERIFY}{UserId}";
 
-                TimeSpan? ttl = Redis.GetValue(_redisPool, redisCTX => redisCTX.KeyTimeToLive(redisKey));
+                string redisKey = $"{REDIS_VERIFY}{UserId}";
+                IDatabase redisDB = _redis.GetDatabase();
+
+                TimeSpan? ttl = redisDB.KeyTimeToLive(redisKey);
 
                 if(ttl is not null) {
                     throw Util.Exception(HttpStatusCode.Forbidden, $"Gửi lại mã xác thực sau {ttl.Value.Minutes} phút");
@@ -374,13 +371,10 @@ namespace ACAPI.GraphQL.Mutation
                     (ctx.Service<IHttpContextAccessor>()).HttpContext?.Request.Host.ToString() ?? string.Empty, 
                     DateTime.UtcNow.AddMinutes(30));
 
-                Redis.Handle(_redisPool, redisCTX =>
-                {
-                    redisCTX.HashSet(redisKey, [
-                        new HashEntry("Token", jwtToken),
-                        ]);
-                    redisCTX.KeyExpire(redisKey, TimeSpan.FromMinutes(30));
-                });
+                redisDB.HashSet(redisKey, [
+                    new HashEntry("Token", jwtToken),
+                ]);
+                redisDB.KeyExpire(redisKey, TimeSpan.FromMinutes(30));
 
                 string verifyLink = $"https://localhost:5000/api/auth/verify-email?token={jwtToken}";
 
@@ -425,17 +419,15 @@ namespace ACAPI.GraphQL.Mutation
             private void PurgeRedis(string? username)
             {
                 if (username is null) return;
-
-                Redis.Handle(_redisPool, redisContext =>
-                {
-                    redisContext.KeyDelete(username);
-                });
+                IDatabase redisDB = _redis.GetDatabase();
+                redisDB.KeyDelete(username);
             }
 
             private async Task<bool> SendMailForChangeEmail(long UserId, string Username ,string oldEmail, string newEmail) {
 
                 string redisKey = $"{REDIS_VERIFY}{UserId}";
-                TimeSpan? ttl = Redis.GetValue(_redisPool, redisCTX => redisCTX.KeyTimeToLive(redisKey));
+                IDatabase redisDB = _redis.GetDatabase();
+                TimeSpan? ttl = redisDB.KeyTimeToLive(redisKey);
 
                 if(ttl is not null) {
                     throw Util.Exception(HttpStatusCode.Forbidden, $"Thực hiện lại thao tác sau {ttl.Value.Minutes} phút");
@@ -454,13 +446,10 @@ namespace ACAPI.GraphQL.Mutation
                     Env.GetString("HOST"), 
                     DateTime.UtcNow.AddMinutes(30));
 
-                Redis.Handle(_redisPool, redisCTX =>
-                {
-                    redisCTX.HashSet(redisKey, [
-                        new HashEntry("Token", jwtToken),
-                        ]);
-                    redisCTX.KeyExpire(redisKey, TimeSpan.FromMinutes(30));
-                });
+                redisDB.HashSet(redisKey, [
+                    new HashEntry("Token", jwtToken),
+                ]);
+                redisDB.KeyExpire(redisKey, TimeSpan.FromMinutes(30));
 
                 string verifyLink = $"https://localhost:5000/api/auth/verify-email?token={jwtToken}";
 

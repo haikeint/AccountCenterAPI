@@ -7,6 +7,7 @@ using ACAPI.GraphQL.Query;
 using ACAPI.Service;
 using ACAPI.Helper;
 using DotNetEnv;
+using StackExchange.Redis;
 
 namespace ACAPI
 {
@@ -26,12 +27,18 @@ namespace ACAPI
                 options.UseMySql(Util.GetConnectionString("MYSQL"),
                     new MySqlServerVersion(new Version(8, 0, 37))));
 
-            builder.Services.AddSingleton(option =>
+            //builder.Services.AddSingleton(option =>
+            //{
+            //    return RedisConnectionPoolManager.GetInstance(
+            //        Env.GetString("REDIS_HOST"),
+            //        Env.GetInt("REDIS_POLLSIZE"));
+            //});
+
+            builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
             {
-                return RedisConnectionPoolManager.GetInstance(
-                    Env.GetString("REDIS_HOST"),
-                    Env.GetInt("REDIS_POLLSIZE"));
+                return RedisConnectionManager.GetInstance(Env.GetString("REDIS_HOST"));
             });
+
             builder.Services.AddScoped<ViewRenderService>();
 
             builder.Services.AddCors(options =>
