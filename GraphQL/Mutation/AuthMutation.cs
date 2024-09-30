@@ -7,7 +7,9 @@ using System.Net;
 using HotChocolate.Resolvers;
 using MySqlConnector;
 using ACAPI.Helper;
+using ACAPI.Wrapper;
 using DotNetEnv;
+using System.Text.Json;
 
 namespace ACAPI.GraphQL.Mutation
 {
@@ -37,7 +39,6 @@ namespace ACAPI.GraphQL.Mutation
 
             descriptor.Field("logout")
                 .Resolve(ctx => Resolver.Logout(ctx.Service<IHttpContextAccessor>()));
-
 
             descriptor.Field("register")
                 .Argument(Agrs.USERNAME, arg => arg.Type<NonNullType<StringType>>())
@@ -103,21 +104,30 @@ namespace ACAPI.GraphQL.Mutation
                         if (Password.Verify(password, accountModel.Password))
                         {
                             HttpContext? httpCTX = httpContextAccessor.HttpContext;
+
                             string host = httpCTX?.Request.Host.ToString() ?? string.Empty;
+
+                            Session session = new (_redis.GetDatabase());
+
+                            LoginWrapper loginPayload = new () {
+                                UserId = accountModel.Id.ToString(),
+                                SessionId = session.Create(Value: accountModel.Id.ToString() ?? string.Empty),
+                            };
+                            
                             string jwtToken = JWT.GenerateES384(
-                                accountModel.Id.ToString() ?? string.Empty, 
+                                JsonSerializer.Serialize(loginPayload), 
                                 JWT.ISSUER, 
                                 host, 
-                                DateTime.UtcNow.AddDays(Env.GetInt("EXPIRE_LOGIN")));
+                                DateTime.UtcNow.AddHours(Env.GetInt("EXPIRE_LOGIN_HOUR")));
 
                             httpCTX?.Response.Cookies.Append(EnvirConst.AccessToken, jwtToken, Util.CookieOptions());
-                            httpCTX?.Response.Cookies.Append(EnvirConst.AccessTokenExpire, DateTimeOffset.UtcNow.AddDays(Env.GetInt("EXPIRE_LOGIN")).ToString("o"), new CookieOptions
+                            httpCTX?.Response.Cookies.Append(EnvirConst.AccessTokenExpire, DateTimeOffset.UtcNow.AddHours(Env.GetInt("EXPIRE_LOGIN_HOUR")).ToString("o"), new CookieOptions
                             {
                                 Path = "/",
                                 HttpOnly = false,
                                 Secure = true,
                                 SameSite = SameSiteMode.None,
-                                Expires = DateTimeOffset.UtcNow.AddDays(Env.GetInt("EXPIRE_LOGIN"))
+                                Expires = DateTimeOffset.UtcNow.AddHours(Env.GetInt("EXPIRE_LOGIN_HOUR"))
                             });
                             return true;
                         }

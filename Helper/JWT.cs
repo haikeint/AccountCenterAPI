@@ -66,7 +66,7 @@ namespace ACAPI.Helper
         public static bool IsTokenExpiringSoon(string token, int thresholdInMinutes)
         {
             JwtSecurityTokenHandler tokenHandler = new();
-            JwtSecurityToken jwtToken = tokenHandler.ReadJwtToken(token);
+            JwtSecurityToken jwtToken = tokenHandler.ReadJwtToken(Key.Header + token);
 
             Claim? expClaim = jwtToken.Claims.FirstOrDefault(claim => claim.Type == JwtRegisteredClaimNames.Exp);
             if (expClaim == null)
