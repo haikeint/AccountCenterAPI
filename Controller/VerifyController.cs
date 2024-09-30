@@ -28,7 +28,8 @@ namespace ACAPI.Controller {
         [HttpGet("verify-email")]
         public async Task<IActionResult> VerifyEmail([FromQuery] string token)
         { 
-            IIdentity? identity = JWT.ValidateES384(token, JWT.ISSUER, Request.Host.Value);
+            string host = Env.GetString("HOST");
+            IIdentity? identity = JWT.ValidateES384(token, JWT.ISSUER, host);
             if (!(identity?.IsAuthenticated ?? false) || identity.Name is null) return BadRequest("Token không hợp lệ.");
 
             var deserializedPayload = JsonConvert.DeserializeObject<dynamic>(identity.Name);
@@ -48,7 +49,7 @@ namespace ACAPI.Controller {
             if (accountRedis[0].HasValue) {
                 MysqlContext mysqlContext = _contextFactory.CreateDbContext();
                 if(!string.IsNullOrEmpty(Operator) && Operator == "RequestChangeEmail") {
-                    if(await SendVerifyEmail(Request.Host.Value, NewEmail, UserId, UserId)) {
+                    if(await SendVerifyEmail(host, NewEmail, UserId, UserId)) {
                          string sql = "UPDATE account Set email = {0}, is_email_verified = 0 WHERE id = {1} and email = {2}";
                         Task<int> rowAffect = mysqlContext.Database.ExecuteSqlRawAsync(sql, NewEmail, UserId, Email);
                         if(!(await rowAffect > 0)) return BadRequest("Lỗi không xác định");
@@ -92,7 +93,7 @@ namespace ACAPI.Controller {
                     ]);
                 redisDB.KeyExpire(redisKey, TimeSpan.FromMinutes(30));
 
-                string verifyLink = $"https://localhost:5000/api/auth/verify-email?token={jwtToken}";
+                string verifyLink = $"https://{host}/api/auth/verify-email?token={jwtToken}";
 
                 string emailBody = await _viewRenderService.RenderToStringAsync(
                     "~/View/VerifyEmailTempalte.cshtml",

@@ -105,7 +105,7 @@ namespace ACAPI.GraphQL.Mutation
                         {
                             HttpContext? httpCTX = httpContextAccessor.HttpContext;
 
-                            string host = httpCTX?.Request.Host.ToString() ?? string.Empty;
+                            string host = Env.GetString("HOST");
 
                             Session session = new (_redis.GetDatabase());
 

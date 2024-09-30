@@ -364,11 +364,11 @@ namespace ACAPI.GraphQL.Mutation
                     Email= accountModel.Email ?? string.Empty,
                     Operator = "VerifyEmail"
                 };
-               
+                string host = Env.GetString("HOST");
                 string jwtToken = JWT.GenerateES384(
                     JsonSerializer.Serialize(payload),
                     JWT.ISSUER,
-                    (ctx.Service<IHttpContextAccessor>()).HttpContext?.Request.Host.ToString() ?? string.Empty, 
+                    host, 
                     DateTime.UtcNow.AddMinutes(30));
 
                 redisDB.HashSet(redisKey, [
@@ -376,7 +376,7 @@ namespace ACAPI.GraphQL.Mutation
                 ]);
                 redisDB.KeyExpire(redisKey, TimeSpan.FromMinutes(30));
 
-                string verifyLink = $"https://localhost:5000/api/auth/verify-email?token={jwtToken}";
+                string verifyLink = $"https://{host}/api/auth/verify-email?token={jwtToken}";
 
                 string emailBody = await _viewRenderService.RenderToStringAsync(
                     "~/View/VerifyEmailTempalte.cshtml",
@@ -440,10 +440,11 @@ namespace ACAPI.GraphQL.Mutation
                     Operator = "RequestChangeEmail"
                 };
                 
+                string host = Env.GetString("HOST");
                 string jwtToken = JWT.GenerateES384(
                     JsonSerializer.Serialize(payload),
                     JWT.ISSUER,
-                    Env.GetString("HOST"), 
+                    host, 
                     DateTime.UtcNow.AddMinutes(30));
 
                 redisDB.HashSet(redisKey, [
@@ -451,7 +452,7 @@ namespace ACAPI.GraphQL.Mutation
                 ]);
                 redisDB.KeyExpire(redisKey, TimeSpan.FromMinutes(30));
 
-                string verifyLink = $"https://localhost:5000/api/auth/verify-email?token={jwtToken}";
+                string verifyLink = $"https://{host}/api/auth/verify-email?token={jwtToken}";
 
                 string emailBody = await _viewRenderService.RenderToStringAsync(
                     "~/View/VerifyEmailTempalte.cshtml",
